@@ -1,0 +1,100 @@
+from fastapi import (APIRouter, Depends, HTTPException, 
+                     UploadFile, File, Query)
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime
+from app.database import get_db
+from app.models import CaptureSession, LocationPoint
+from app.schemas import CaptureSessionResponse
+from app.services.gcs_service import upload_360_image
+import uuid
+
+router = APIRouter()
+
+@router.get("/location/{location_id}",
+            response_model=List[CaptureSessionResponse])
+def list_sessions(
+    location_id: str,
+    db: Session = Depends(get_db),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0)
+):
+    loc = db.query(LocationPoint).filter(
+        LocationPoint.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, 
+                            detail="Location not found")
+    return (db.query(CaptureSession)
+              .filter(CaptureSession.location_point_id == location_id)
+              .order_by(CaptureSession.captured_at.desc())
+              .offset(offset).limit(limit).all())
+
+@router.post("/location/{location_id}",
+             response_model=CaptureSessionResponse, status_code=201)
+async def create_session(
+    location_id: str,
+    file: UploadFile = File(...),
+    device_model: Optional[str] = None,
+    gps_lat: Optional[float] = None,
+    gps_lng: Optional[float] = None,
+    db: Session = Depends(get_db)
+):
+    loc = db.query(LocationPoint).filter(
+        LocationPoint.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, 
+                            detail="Location not found")
+
+    # Get site_id by traversing the relationship
+    site_id = loc.floor_plan.site_id
+    session_id = str(uuid.uuid4())
+    file_bytes = await file.read()
+
+    urls = upload_360_image(
+        file_bytes, site_id, location_id, session_id
+    )
+
+    session = CaptureSession(
+        id=session_id,
+        location_point_id=location_id,
+        image_url=urls["image_url"],
+        thumbnail_url=urls["thumbnail_url"],
+        captured_by="system",  # replaced by auth later
+        device_model=device_model,
+        gps_lat=gps_lat,
+        gps_lng=gps_lng,
+        captured_at=datetime.utcnow(),
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+@router.get("/compare", response_model=List[CaptureSessionResponse])
+def compare_sessions(
+    session_a: str = Query(..., description="First session ID"),
+    session_b: str = Query(..., description="Second session ID"),
+    db: Session = Depends(get_db)
+):
+    """Return two capture sessions side by side for comparison."""
+    results = []
+    for sid in [session_a, session_b]:
+        s = db.query(CaptureSession).filter(
+            CaptureSession.id == sid).first()
+        if not s:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Session {sid} not found"
+            )
+        results.append(s)
+    return results
+
+@router.get("/{session_id}", 
+            response_model=CaptureSessionResponse)
+def get_session(session_id: str, db: Session = Depends(get_db)):
+    s = db.query(CaptureSession).filter(
+        CaptureSession.id == session_id).first()
+    if not s:
+        raise HTTPException(status_code=404, 
+                            detail="Session not found")
+    return s
