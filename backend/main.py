@@ -6,7 +6,13 @@ from app.database import engine, Base
 
 Base.metadata.create_all(bind=engine)
 
+from fastapi.staticfiles import StaticFiles
+import os
+os.makedirs("static/floor-plans", exist_ok=True)
+
 app = FastAPI(title="360 Field Check API", version="1.0.0")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,

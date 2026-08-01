@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Upload, Eye, MapPin, Plus, List } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations } from '../services/api';
+import { getSites, getFloorPlans, getLocations, uploadFloorPlan } from '../services/api';
 
 const FloorPlansPage: React.FC = () => {
   const [sites, setSites] = useState<any[]>([]);
@@ -13,6 +13,10 @@ const FloorPlansPage: React.FC = () => {
   
   const [isAddingPin, setIsAddingPin] = useState(false);
   const [pins, setPins] = useState<any[]>([]);
+  
+  const [uploadLabel, setUploadLabel] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -71,6 +75,26 @@ const FloorPlansPage: React.FC = () => {
       toast.success("Location pin added");
     }
     setIsAddingPin(false);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadLabel || !selectedSiteId) return;
+    setUploading(true);
+    try {
+      await uploadFloorPlan(selectedSiteId, uploadLabel, uploadFile);
+      toast.success("Floor plan uploaded successfully!");
+      setShowUploadModal(false);
+      setUploadLabel('');
+      setUploadFile(null);
+      // Refresh list
+      const res = await getFloorPlans(selectedSiteId);
+      setPlans(res.data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload floor plan");
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (selectedPlan) {
@@ -208,20 +232,22 @@ const FloorPlansPage: React.FC = () => {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Label <span className="font-normal text-gray-400">(e.g. Level 1)</span></label>
-                <input type="text" className="input bg-gray-50 font-medium" placeholder="Level name..." />
+                <input type="text" className="input bg-gray-50 font-medium" placeholder="Level name..." value={uploadLabel} onChange={e => setUploadLabel(e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">File <span className="font-normal text-gray-400">(PNG/JPG/PDF)</span></label>
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group">
                   <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2 group-hover:text-brand-500 transition-colors" />
-                  <input type="file" className="block w-full text-sm text-gray-500 file:hidden cursor-pointer" />
-                  <span className="text-sm font-medium text-brand-600">Click to browse</span> or drag and drop
+                  <input type="file" className="block w-full text-sm text-gray-500 file:hidden cursor-pointer" onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)} />
+                  <span className="text-sm font-medium text-brand-600">{uploadFile ? uploadFile.name : 'Click to browse'}</span> {uploadFile ? '' : 'or drag and drop'}
                 </div>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-8 pt-5 border-t border-gray-100">
               <button onClick={() => setShowUploadModal(false)} className="px-5 py-2.5 font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={() => { setShowUploadModal(false); toast.success("Floor plan uploaded") }} className="btn-primary px-6 py-2.5 shadow-md">Upload Plan</button>
+              <button onClick={handleUpload} disabled={uploading || !uploadFile || !uploadLabel} className="btn-primary px-6 py-2.5 shadow-md disabled:opacity-50">
+                {uploading ? 'Uploading...' : 'Upload Plan'}
+              </button>
             </div>
           </div>
         </div>
