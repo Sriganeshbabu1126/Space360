@@ -80,6 +80,7 @@ const FloorPlansPage: React.FC = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File selected:', e.target.files?.[0]);
     if (e.target.files && e.target.files[0]) {
       setUploadFile(e.target.files[0]);
     }
@@ -89,7 +90,9 @@ const FloorPlansPage: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      console.log('File dropped:', e.dataTransfer.files[0]);
       setUploadFile(e.dataTransfer.files[0]);
+      console.log('uploadFile state set');
     }
   };
 
@@ -265,7 +268,10 @@ const FloorPlansPage: React.FC = () => {
                 <input
                   type="text"
                   value={uploadLabel}
-                  onChange={(e) => setUploadLabel(e.target.value)}
+                  onChange={(e) => {
+                    console.log('Label changed:', e.target.value);
+                    setUploadLabel(e.target.value);
+                  }}
                   placeholder="Level name..."
                   className="input w-full mb-4"
                 />
@@ -333,12 +339,16 @@ const FloorPlansPage: React.FC = () => {
               </button>
               <button
                 onClick={handleUpload}
-                disabled={!uploadFile || !uploadLabel || uploading}
+                disabled={!uploadFile || uploading}
                 className="btn-primary px-6 py-2.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading ? 'Uploading...' : 'Upload Plan'}
               </button>
             </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Debug: file={uploadFile ? uploadFile.name : 'none'} 
+              | label={uploadLabel || 'empty'}
+            </p>
           </div>
         </div>
       )}
