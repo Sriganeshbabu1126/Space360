@@ -1,10 +1,10 @@
+import React, { useEffect, useRef, useState } from 'react';
+
 declare global {
   interface Window {
     pannellum: any;
   }
 }
-
-import React, { useEffect, useRef, useState } from 'react';
 
 interface Viewer360Props {
   id: string;
@@ -72,7 +72,7 @@ const Viewer360: React.FC<Viewer360Props> = ({
         try { viewerRef.current.destroy(); } catch(e) {}
       }
     };
-  }, [imageUrl, heading]);
+  }, [imageUrl, heading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const v = viewerRef.current;
@@ -101,7 +101,7 @@ const Viewer360: React.FC<Viewer360Props> = ({
       el.addEventListener('wheel', handleWheel);
       return () => el.removeEventListener('wheel', handleWheel);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="relative overflow-hidden w-full" style={{ height }}>

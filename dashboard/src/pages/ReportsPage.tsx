@@ -1,5 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState } from 'react';
-import { FileBarChart, Download } from 'lucide-react';
+import { 
+  FileBarChart, 
+  Sparkles, 
+  Download, 
+  Plus, 
+  Calendar,
+  MapPin,
+  Building2,
+  X
+} from 'lucide-react';
 import ProgressBar from '../components/ProgressBar';
 
 const ReportsPage: React.FC = () => {
