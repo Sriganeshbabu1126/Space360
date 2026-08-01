@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Upload, Eye, MapPin, Plus, List } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getSites, getFloorPlans, getLocations } from '../services/api';
 
 const FloorPlansPage: React.FC = () => {
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   
@@ -14,18 +18,44 @@ const FloorPlansPage: React.FC = () => {
 
   useEffect(() => {
     document.title = "Floor Plans | Space360";
-    setPlans([
-      { id: '1', label: 'Level 1', thumb: 'https://images.unsplash.com/photo-1598418042571-085e8d91240c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', pinCount: 4 },
-      { id: '2', label: 'Level 2', thumb: 'https://images.unsplash.com/photo-1598418042571-085e8d91240c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', pinCount: 2 }
-    ]);
+    const fetchSites = async () => {
+      try {
+        const res = await getSites();
+        setSites(res.data);
+        if (res.data.length > 0) {
+          setSelectedSiteId(res.data[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchSites();
   }, []);
 
-  const openPlan = (plan: any) => {
+  useEffect(() => {
+    if (!selectedSiteId) return;
+    const fetchPlans = async () => {
+      setLoading(true);
+      try {
+        const res = await getFloorPlans(selectedSiteId);
+        setPlans(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPlans();
+  }, [selectedSiteId]);
+
+  const openPlan = async (plan: any) => {
     setSelectedPlan(plan);
-    setPins([
-      { id: 'p1', label: 'Lobby', x: 25, y: 40 },
-      { id: 'p2', label: 'Elevator Bank', x: 50, y: 50 }
-    ]);
+    try {
+      const res = await getLocations(plan.id);
+      setPins(res.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
@@ -37,7 +67,7 @@ const FloorPlansPage: React.FC = () => {
 
     const label = prompt("Enter location label for this pin:");
     if (label) {
-      setPins([...pins, { id: Date.now().toString(), label, x, y }]);
+      setPins([...pins, { id: Date.now().toString(), label, pin_x: x, pin_y: y }]);
       toast.success("Location pin added");
     }
     setIsAddingPin(false);
@@ -81,7 +111,7 @@ const FloorPlansPage: React.FC = () => {
               <div 
                 key={pin.id} 
                 className={`absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer transition-transform ${isAddingPin ? 'pointer-events-none opacity-50' : 'hover:scale-110 z-10'}`}
-                style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                style={{ left: `${pin.pin_x}%`, top: `${pin.pin_y}%` }}
                 onClick={() => { if(!isAddingPin) toast('Opening timeline for ' + pin.label, { icon: '🕒' }) }}
               >
                 <div className="relative flex flex-col items-center">
@@ -122,7 +152,15 @@ const FloorPlansPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-2xl shadow-sm border border-gray-200 gap-4">
         <div className="flex items-center space-x-4">
           <h2 className="text-2xl font-black text-gray-900">Floor Plans</h2>
-          <select className="input min-w-[200px] bg-gray-50 font-medium"><option>Downtown Highrise</option></select>
+          <select 
+            className="input min-w-[200px] bg-gray-50 font-medium"
+            value={selectedSiteId}
+            onChange={(e) => setSelectedSiteId(e.target.value)}
+          >
+            {sites.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
         <button onClick={() => setShowUploadModal(true)} className="btn-primary flex items-center shadow-md py-2.5">
           <Upload className="w-5 h-5 mr-2" />
@@ -130,15 +168,23 @@ const FloorPlansPage: React.FC = () => {
         </button>
       </div>
 
+      {plans.length === 0 && !loading ? (
+        <div className="card py-16 text-center">
+          <Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-gray-900 mb-2">No floor plans yet</h3>
+          <p className="text-gray-500 mb-6">Upload a floor plan to start adding location pins and captures.</p>
+          <button onClick={() => setShowUploadModal(true)} className="btn-primary px-6 py-2.5">Upload First Plan</button>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {plans.map(p => (
           <div key={p.id} className="card p-0 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200">
             <div className="h-56 bg-gray-200 relative border-b border-gray-100 overflow-hidden">
-              <img src={p.thumb} alt={p.label} className="w-full h-full object-cover opacity-90 group-hover:scale-105 group-hover:opacity-100 transition-all duration-500" />
+              <img src={p.image_url} alt={p.label} className="w-full h-full object-cover opacity-90 group-hover:scale-105 group-hover:opacity-100 transition-all duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="absolute top-4 right-4 bg-white/95 backdrop-blur text-gray-900 text-xs font-black px-3 py-1.5 rounded-lg shadow-sm flex items-center uppercase tracking-wider">
                 <MapPin className="w-3 h-3 mr-1.5 text-brand-600" />
-                {p.pinCount} Pins
+                Pins
               </div>
             </div>
             <div className="p-5 flex justify-between items-center bg-white">
@@ -150,6 +196,7 @@ const FloorPlansPage: React.FC = () => {
           </div>
         ))}
       </div>
+      )}
 
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">

@@ -16,13 +16,12 @@ const DashboardPage: React.FC = () => {
     const fetchStats = async () => {
       try {
         const res = await getSites();
-        // Since we only have getSites implemented, we'll mock the rest based on site count
         const siteCount = res.data.length || 0;
         setStats({
           sites: siteCount,
-          captures: siteCount * 14, // Mock data
-          pendingJobs: 2, // Mock data
-          issues: 5 // Mock data
+          captures: 0,
+          pendingJobs: 0,
+          issues: 0
         });
       } catch (error) {
         console.error("Failed to fetch dashboard stats", error);
