@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, Eye, MapPin, Plus, List } from 'lucide-react';
+import { Upload, Eye, MapPin, Plus, List, Map } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getSites, getFloorPlans, getLocations, uploadFloorPlan } from '../services/api';
 
@@ -14,8 +14,10 @@ const FloorPlansPage: React.FC = () => {
   const [isAddingPin, setIsAddingPin] = useState(false);
   const [pins, setPins] = useState<any[]>([]);
   
-  const [uploadLabel, setUploadLabel] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLabel, setUploadLabel] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   
   const imageRef = useRef<HTMLImageElement>(null);
@@ -77,21 +79,47 @@ const FloorPlansPage: React.FC = () => {
     setIsAddingPin(false);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setUploadFile(e.target.files[0]);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setUploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
   const handleUpload = async () => {
-    if (!uploadFile || !uploadLabel || !selectedSiteId) return;
-    setUploading(true);
+    if (!uploadFile || !uploadLabel || !selectedSiteId) {
+      toast.error('Please fill in all fields');
+      return;
+    }
     try {
+      setUploading(true);
       await uploadFloorPlan(selectedSiteId, uploadLabel, uploadFile);
-      toast.success("Floor plan uploaded successfully!");
+      toast.success('Floor plan uploaded successfully!');
       setShowUploadModal(false);
-      setUploadLabel('');
       setUploadFile(null);
+      setUploadLabel('');
       // Refresh list
-      const res = await getFloorPlans(selectedSiteId);
-      setPlans(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to upload floor plan");
+      const fp = await getFloorPlans(selectedSiteId);
+      setPlans(fp.data);
+    } catch (error) {
+      toast.error('Upload failed. Please try again.');
+      console.error(error);
     } finally {
       setUploading(false);
     }
@@ -194,10 +222,10 @@ const FloorPlansPage: React.FC = () => {
 
       {plans.length === 0 && !loading ? (
         <div className="card py-16 text-center">
-          <Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <Map className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-900 mb-2">No floor plans yet</h3>
-          <p className="text-gray-500 mb-6">Upload a floor plan to start adding location pins and captures.</p>
-          <button onClick={() => setShowUploadModal(true)} className="btn-primary px-6 py-2.5">Upload First Plan</button>
+          <p className="text-gray-500 mb-6">Upload your first floor plan to get started</p>
+          <button onClick={() => setShowUploadModal(true)} className="btn-primary px-6 py-2.5">Upload Floor Plan</button>
         </div>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -231,21 +259,83 @@ const FloorPlansPage: React.FC = () => {
             </div>
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Label <span className="font-normal text-gray-400">(e.g. Level 1)</span></label>
-                <input type="text" className="input bg-gray-50 font-medium" placeholder="Level name..." value={uploadLabel} onChange={e => setUploadLabel(e.target.value)} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Label (e.g. Level 1)
+                </label>
+                <input
+                  type="text"
+                  value={uploadLabel}
+                  onChange={(e) => setUploadLabel(e.target.value)}
+                  placeholder="Level name..."
+                  className="input w-full mb-4"
+                />
               </div>
+
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">File <span className="font-normal text-gray-400">(PNG/JPG/PDF)</span></label>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2 group-hover:text-brand-500 transition-colors" />
-                  <input type="file" className="block w-full text-sm text-gray-500 file:hidden cursor-pointer" onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)} />
-                  <span className="text-sm font-medium text-brand-600">{uploadFile ? uploadFile.name : 'Click to browse'}</span> {uploadFile ? '' : 'or drag and drop'}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  File (PNG/JPG/PDF)
+                </label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".png,.jpg,.jpeg,.pdf"
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  className={`border-2 border-dashed rounded-lg p-8 
+                    text-center cursor-pointer transition-colors
+                    ${isDragging 
+                      ? 'border-brand-500 bg-brand-50' 
+                      : 'border-gray-300 hover:border-brand-400 hover:bg-gray-50'}`}
+                >
+                  {uploadFile ? (
+                    <div>
+                      <p className="text-brand-600 font-medium">
+                        {uploadFile.name}
+                      </p>
+                      <p className="text-gray-500 text-sm mt-1">
+                        {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <p className="text-gray-400 text-xs mt-2">
+                        Click to change file
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600">
+                        Click to browse or drag and drop
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        PNG, JPG, PDF up to 50MB
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-8 pt-5 border-t border-gray-100">
-              <button onClick={() => setShowUploadModal(false)} className="px-5 py-2.5 font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={handleUpload} disabled={uploading || !uploadFile || !uploadLabel} className="btn-primary px-6 py-2.5 shadow-md disabled:opacity-50">
+            
+            <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                  setUploadLabel('');
+                }}
+                className="px-5 py-2.5 font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={!uploadFile || !uploadLabel || uploading}
+                className="btn-primary px-6 py-2.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {uploading ? 'Uploading...' : 'Upload Plan'}
               </button>
             </div>
