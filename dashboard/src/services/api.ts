@@ -1,0 +1,78 @@
+import axios from "axios";
+import { auth } from "./firebase";
+
+const BASE_URL = process.env.REACT_APP_API_URL 
+                 || "http://localhost:8000";
+
+const api = axios.create({ baseURL: BASE_URL });
+
+// Attach Firebase token to every request
+api.interceptors.request.use(async (config) => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// --- Sites ---
+export const getSites = () => 
+  api.get("/sites/");
+export const createSite = (data: object) => 
+  api.post("/sites/", data);
+export const getSite = (id: string) => 
+  api.get(`/sites/${id}`);
+
+// --- Floor Plans ---
+export const getFloorPlans = (siteId: string) =>
+  api.get(`/floor-plans/site/${siteId}`);
+export const uploadFloorPlan = (
+  siteId: string, label: string, file: File) => {
+  const form = new FormData();
+  form.append("label", label);
+  form.append("file", file);
+  return api.post(`/floor-plans/site/${siteId}`, form);
+};
+
+// --- Locations ---
+export const getLocations = (floorPlanId: string) =>
+  api.get(`/locations/floor-plan/${floorPlanId}`);
+export const createLocation = (
+  floorPlanId: string, data: object) =>
+  api.post(`/locations/floor-plan/${floorPlanId}`, data);
+
+// --- Sessions ---
+export const getSessions = (locationId: string) =>
+  api.get(`/sessions/location/${locationId}`);
+export const uploadSession = (
+  locationId: string, file: File,
+  deviceModel?: string) => {
+  const form = new FormData();
+  form.append("file", file);
+  if (deviceModel) form.append("device_model", deviceModel);
+  return api.post(`/sessions/location/${locationId}`, form);
+};
+export const compareSessions = (
+  sessionA: string, sessionB: string) =>
+  api.get(`/sessions/compare?session_a=${sessionA}&session_b=${sessionB}`);
+
+// --- AI Features ---
+export const detectChanges = (
+  sessionA: string, sessionB: string) =>
+  api.post(`/ai/change-detection?session_a_id=${sessionA}&session_b_id=${sessionB}`);
+export const estimateProgress = (sessionId: string) =>
+  api.post(`/ai/progress-estimation/${sessionId}`);
+export const transcribeVoiceNote = (noteId: string) =>
+  api.post(`/ai/transcribe/${noteId}`);
+export const askSite = (siteId: string, question: string) =>
+  api.post(`/ai/ask/${siteId}?question=${encodeURIComponent(question)}`);
+
+// --- Annotations ---
+export const getAnnotations = (sessionId: string) =>
+  api.get(`/annotations/session/${sessionId}`);
+export const createAnnotation = (
+  sessionId: string, data: object) =>
+  api.post(`/annotations/session/${sessionId}`, data);
+export const resolveAnnotation = (annotationId: string) =>
+  api.patch(`/annotations/${annotationId}/resolve`);

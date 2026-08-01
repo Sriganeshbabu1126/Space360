@@ -1,6 +1,8 @@
 ---
 
-# 360 Field Check — Project Specification
+# Space360 — Project Specification
+
+Developed by: SGB Dev Apps
 
 ## Overview
 A construction site progress monitoring app that mimics OpenSpace AI, 
