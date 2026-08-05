@@ -3,12 +3,18 @@ import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
+import Viewer360 from '../components/Viewer360';
 
 const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const locationParam = searchParams.get('location_id');
+  
   const [captures, setCaptures] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
   // Modal states
   const [sites, setSites] = useState<any[]>([]);
@@ -28,7 +34,16 @@ const CapturesPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAllSessions();
-      setCaptures(res.data);
+      let data = res.data;
+      
+      if (locationParam) {
+        data = data.filter((c: any) => c.location_point_id === locationParam);
+        if (data.length > 0) {
+          setViewerUrl(data[0].image_url);
+        }
+      }
+      
+      setCaptures(data);
     } catch (err) {
       console.error(err);
       toast.error('Failed to load captures');
@@ -114,9 +129,13 @@ const CapturesPage: React.FC = () => {
     }
   };
 
-  const handleView360 = (e: React.MouseEvent, id: string) => {
+  const handleView360 = (e: React.MouseEvent, imageUrl: string) => {
     e.stopPropagation();
-    console.log("View 360 clicked for session:", id);
+    if (imageUrl) {
+      setViewerUrl(imageUrl);
+    } else {
+      toast.error('No image available for this capture');
+    }
   };
 
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
@@ -170,7 +189,7 @@ const CapturesPage: React.FC = () => {
                   <div className="w-full h-full flex items-center justify-center bg-gray-100"><Camera className="w-8 h-8 text-gray-300" /></div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button onClick={(e) => handleView360(e, c.id)} className="bg-white/20 backdrop-blur border border-white/50 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-lg transform scale-90 group-hover:scale-100 transition-all hover:bg-white hover:text-gray-900">
+                  <button onClick={(e) => handleView360(e, c.image_url)} className="bg-white/20 backdrop-blur border border-white/50 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-lg transform scale-90 group-hover:scale-100 transition-all hover:bg-white hover:text-gray-900">
                     <Eye className="w-4 h-4 mr-2" /> View 360°
                   </button>
                 </div>
@@ -272,6 +291,10 @@ const CapturesPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {viewerUrl && (
+        <Viewer360 imageUrl={viewerUrl} onClose={() => setViewerUrl(null)} />
       )}
     </div>
   );
