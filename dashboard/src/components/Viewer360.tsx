@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 interface Viewer360Props {
   imageUrl: string;
-  onClose: () => void;
+  onClose?: () => void;
   id?: string;
   height?: string;
   onViewChange?: (pitch: number, yaw: number, hfov: number) => void;
@@ -74,13 +74,20 @@ const Viewer360: React.FC<Viewer360Props> = ({
   }, [syncPitch, syncYaw, syncHfov]);
 
   return (
-    <div id={id} className="fixed inset-0 z-[100] flex items-center justify-center bg-black animate-fade-in">
-      <button 
-        onClick={onClose}
-        className="absolute top-4 right-4 z-[101] bg-black/50 hover:bg-black/80 text-white p-3 rounded-full transition-colors"
-      >
-        <X className="w-6 h-6" />
-      </button>
+    <div 
+      id={id} 
+      className={onClose 
+        ? "fixed inset-0 z-[100] flex items-center justify-center bg-black animate-fade-in"
+        : "relative w-full flex-1 bg-black"}
+    >
+      {onClose && (
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 z-[101] bg-black/50 hover:bg-black/80 text-white p-3 rounded-full transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      )}
       <div ref={viewerRef} className="w-full" style={{ height: height || '100%' }}></div>
     </div>
   );
