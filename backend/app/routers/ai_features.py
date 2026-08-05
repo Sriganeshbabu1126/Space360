@@ -15,9 +15,13 @@ router = APIRouter()
 genai.configure(api_key=settings.GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-def fetch_image_as_base64(url: str) -> str:
-    response = httpx.get(url)
-    return base64.b64encode(response.content).decode("utf-8")
+def fetch_local_image_as_base64(session_id: str) -> str:
+    import os
+    path = os.path.join("static", "test-captures", f"{session_id}.jpg")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Image file not found for session {session_id}")
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 
 # --- 1. Change Detection ---
@@ -37,33 +41,28 @@ async def detect_changes(
         raise HTTPException(status_code=404,
                             detail="One or both sessions not found")
 
-    img_a = fetch_image_as_base64(session_a.image_url)
-    img_b = fetch_image_as_base64(session_b.image_url)
+    img_a = fetch_local_image_as_base64(session_a_id)
+    img_b = fetch_local_image_as_base64(session_b_id)
 
-    prompt = """You are a construction site inspector AI.
-Compare these two 360-degree site images taken at the same location 
-on different dates.
+    prompt = """You are a construction site inspector. Compare these two 360° site photos taken at different times. List all visible changes, new construction work, materials added or removed, and estimate overall progress percentage. Be specific and concise.
 
 Return ONLY a valid JSON object in this exact format:
 {
-  "changes": [
-    {
-      "description": "what changed",
-      "category": "structural|mechanical|electrical|finishing|safety|other",
-      "significance": "low|medium|high"
-    }
-  ],
-  "progress_indicator": "ahead|on_track|delayed|unknown",
-  "summary": "one sentence summary of overall change"
+  "changes": ["list of changes..."],
+  "progress_percentage": 50,
+  "summary": "brief summary..."
 }"""
 
     response = model.generate_content([
         prompt,
         {"mime_type": "image/jpeg", "data": img_a},
         {"mime_type": "image/jpeg", "data": img_b},
-    ])
+    ], generation_config=genai.types.GenerationConfig(response_mime_type="application/json"))
 
-    result = json.loads(response.text)
+    try:
+        result = json.loads(response.text)
+    except json.JSONDecodeError:
+        result = {"summary": "Failed to parse AI response.", "changes": [], "progress_percentage": 0}
 
     session_b.ai_changes = result
     session_b.ai_status = "done"
@@ -85,32 +84,29 @@ async def estimate_progress(
         raise HTTPException(status_code=404,
                             detail="Session not found")
 
-    img = fetch_image_as_base64(session.image_url)
+    img = fetch_local_image_as_base64(session_id)
 
-    prompt = """You are a construction progress estimator AI.
-Analyse this 360-degree construction site image.
+    prompt = """You are a construction site inspector. Analyse this 360° site photo and estimate the construction progress percentage. Identify completed work, work in progress, and pending areas. Return a structured analysis.
 
 Return ONLY a valid JSON object in this exact format:
 {
-  "overall_completion_pct": 0-100,
-  "zones": [
-    {
-      "zone": "zone name",
-      "completion_pct": 0-100,
-      "observations": "brief description"
-    }
-  ],
-  "estimated_stage": "foundation|structure|mep|finishing|handover",
-  "summary": "one sentence overall progress summary"
+  "progress_percentage": 45,
+  "completed": ["list of completed items..."],
+  "in_progress": ["list of items in progress..."],
+  "pending": ["list of pending items..."]
 }"""
 
     response = model.generate_content([
         prompt,
         {"mime_type": "image/jpeg", "data": img},
-    ])
+    ], generation_config=genai.types.GenerationConfig(response_mime_type="application/json"))
 
-    result = json.loads(response.text)
-    session.ai_summary = result.get("summary", "")
+    try:
+        result = json.loads(response.text)
+    except json.JSONDecodeError:
+        result = {"progress_percentage": 0, "completed": [], "in_progress": [], "pending": []}
+        
+    session.ai_summary = f"Progress: {result.get('progress_percentage', 0)}%"
     session.ai_status = "done"
     db.commit()
 
