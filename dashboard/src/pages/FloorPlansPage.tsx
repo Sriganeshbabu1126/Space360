@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, Eye, MapPin, Plus, List, Map, FileText } from 'lucide-react';
+import { Upload, Eye, MapPin, Plus, List, Map, FileText, Camera, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, uploadFloorPlan } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { getSites, getFloorPlans, getLocations, uploadFloorPlan, createLocation } from '../services/api';
 
 const FloorPlansPage: React.FC = () => {
+  const navigate = useNavigate();
   const [sites, setSites] = useState<any[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [plans, setPlans] = useState<any[]>([]);
@@ -13,6 +15,8 @@ const FloorPlansPage: React.FC = () => {
   
   const [isAddingPin, setIsAddingPin] = useState(false);
   const [pins, setPins] = useState<any[]>([]);
+  const [pendingPin, setPendingPin] = useState<{x: number, y: number} | null>(null);
+  const [pinLabel, setPinLabel] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -65,18 +69,35 @@ const FloorPlansPage: React.FC = () => {
   };
 
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (!isAddingPin || !imageRef.current) return;
+    if (!isAddingPin || !imageRef.current || pendingPin) return;
     
     const rect = imageRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    const label = prompt("Enter location label for this pin:");
-    if (label) {
-      setPins([...pins, { id: Date.now().toString(), label, pin_x: x, pin_y: y }]);
+    setPendingPin({ x, y });
+    setPinLabel("");
+  };
+
+  const handleConfirmPin = async () => {
+    if (!pendingPin || !pinLabel.trim() || !selectedPlan) return;
+    try {
+      await createLocation(selectedPlan.id, {
+        label: pinLabel.trim(),
+        pin_x: pendingPin.x,
+        pin_y: pendingPin.y
+      });
       toast.success("Location pin added");
+      setPendingPin(null);
+      setPinLabel("");
+      setIsAddingPin(false);
+      
+      const res = await getLocations(selectedPlan.id);
+      setPins(res.data);
+    } catch (error) {
+      toast.error("Failed to add pin");
+      console.error(error);
     }
-    setIsAddingPin(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,7 +168,14 @@ const FloorPlansPage: React.FC = () => {
             <h2 className="text-3xl font-black text-gray-900">{selectedPlan.label}</h2>
           </div>
           <button 
-            onClick={() => setIsAddingPin(!isAddingPin)} 
+            onClick={() => {
+              if (isAddingPin) {
+                setIsAddingPin(false);
+                setPendingPin(null);
+              } else {
+                setIsAddingPin(true);
+              }
+            }} 
             disabled={selectedPlan.image_url?.toLowerCase().endsWith('.pdf')}
             className={`flex items-center px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm ${
               selectedPlan.image_url?.toLowerCase().endsWith('.pdf') ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
@@ -179,26 +207,67 @@ const FloorPlansPage: React.FC = () => {
               />
             )}
             
-            {isAddingPin && !selectedPlan.image_url?.toLowerCase().endsWith('.pdf') && (
+            {isAddingPin && !pendingPin && !selectedPlan.image_url?.toLowerCase().endsWith('.pdf') && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse z-20 shadow-lg pointer-events-none">
                 Click anywhere on the map to place a pin
               </div>
             )}
 
-            {pins.map(pin => (
+            {pendingPin && (
+              <div 
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 z-30"
+                style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}
+              >
+                <div className="relative">
+                  <div className="w-8 h-8 bg-brand-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
+                    <Plus className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-xl p-3 w-48 animate-fade-in border border-gray-100 z-40">
+                    <input 
+                      type="text" 
+                      autoFocus
+                      placeholder="e.g. Entrance"
+                      value={pinLabel}
+                      onChange={(e) => setPinLabel(e.target.value)}
+                      className="input text-sm mb-2 w-full"
+                      onKeyDown={(e) => e.key === 'Enter' && handleConfirmPin()}
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleConfirmPin} className="flex-1 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold py-1.5 rounded-lg flex justify-center items-center transition-colors">
+                        <Check className="w-3 h-3 mr-1" /> Save
+                      </button>
+                      <button onClick={() => setPendingPin(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-1.5 rounded-lg flex justify-center items-center transition-colors">
+                        <X className="w-3 h-3 mr-1" /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pins.map((pin, index) => (
               <div 
                 key={pin.id} 
                 className={`absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer transition-transform ${isAddingPin ? 'pointer-events-none opacity-50' : 'hover:scale-110 z-10'}`}
                 style={{ left: `${pin.pin_x}%`, top: `${pin.pin_y}%` }}
-                onClick={() => { if(!isAddingPin) toast('Opening timeline for ' + pin.label, { icon: '🕒' }) }}
               >
                 <div className="relative flex flex-col items-center">
-                  <div className="w-4 h-4 bg-white rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-inner"></div>
-                  <MapPin className="w-10 h-10 text-brand-600 drop-shadow-xl filter" strokeWidth={1.5} />
+                  <div className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white font-bold text-sm">
+                    {index + 1}
+                  </div>
                   
-                  <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-gray-900/90 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl border border-gray-700 pointer-events-none">
-                    {pin.label}
-                    <div className="w-2 h-2 bg-gray-900/90 absolute bottom-full left-1/2 -translate-x-1/2 rotate-45 border-t border-l border-gray-700"></div>
+                  <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white rounded-xl p-3 shadow-xl border border-gray-100 z-20 pointer-events-none group-hover:pointer-events-auto min-w-[150px]">
+                    <div className="text-sm font-bold text-gray-900 mb-1 text-center">{pin.label}</div>
+                    <div className="w-full bg-gray-100 h-px mb-2"></div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/captures?location_id=${pin.id}`);
+                      }}
+                      className="w-full bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold py-2 rounded-lg flex justify-center items-center transition-colors"
+                    >
+                      <Camera className="w-3 h-3 mr-1.5" /> View Captures
+                    </button>
                   </div>
                 </div>
               </div>
@@ -212,10 +281,15 @@ const FloorPlansPage: React.FC = () => {
               <h3 className="font-bold text-gray-800">Locations ({pins.length})</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {pins.map(pin => (
-                <div key={pin.id} className="p-3 hover:bg-brand-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-brand-100 flex items-center text-sm font-medium text-gray-700">
-                  <MapPin className="w-4 h-4 text-brand-500 mr-3" />
-                  {pin.label}
+              {pins.map((pin, index) => (
+                <div key={pin.id} className="p-3 hover:bg-brand-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-brand-100 flex items-center text-sm font-medium text-gray-700 group">
+                  <div className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold mr-3 flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <span className="flex-1 truncate">{pin.label}</span>
+                  <button onClick={() => navigate(`/captures?location_id=${pin.id}`)} className="text-brand-600 hover:text-brand-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="View Captures">
+                    <Camera className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
