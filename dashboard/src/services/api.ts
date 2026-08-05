@@ -58,6 +58,8 @@ export const uploadSession = (
 export const compareSessions = (
   sessionA: string, sessionB: string) =>
   api.get(`/sessions/compare?session_a=${sessionA}&session_b=${sessionB}`);
+export const deleteSession = (id: string) =>
+  api.delete(`/sessions/${id}`);
 
 // --- AI Features ---
 export const detectChanges = (

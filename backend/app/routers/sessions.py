@@ -108,3 +108,12 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, 
                             detail="Session not found")
     return s
+
+@router.delete("/{session_id}", status_code=204)
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    s = db.query(CaptureSession).filter(
+        CaptureSession.id == session_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(s)
+    db.commit()

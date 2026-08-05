@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Camera, Filter, Upload, MapPin, X, Eye } from 'lucide-react';
+import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession } from '../services/api';
+import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const CapturesPage: React.FC = () => {
+  const { isAdmin } = useAuth();
   const [captures, setCaptures] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -117,6 +119,20 @@ const CapturesPage: React.FC = () => {
     console.log("View 360 clicked for session:", id);
   };
 
+  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this capture session?")) {
+      try {
+        await deleteSession(id);
+        toast.success("Capture session deleted");
+        fetchCaptures();
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to delete capture session");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 relative">
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -161,18 +177,31 @@ const CapturesPage: React.FC = () => {
               </div>
               <div className="p-5">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-gray-900 truncate pr-2 text-lg">{c.location_point_id.slice(0,8)}</h3>
-                  <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md shadow-sm border ${
-                    c.ai_status === 'done' ? 'bg-green-50 text-green-700 border-green-200' :
-                    c.ai_status === 'processing' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                    'bg-gray-50 text-gray-700 border-gray-200'
-                  }`}>
-                    {c.ai_status || 'pending'}
-                  </span>
+                  <h3 className="font-bold text-gray-900 truncate pr-2 text-lg">
+                    {c.location_label || c.location_point_id.slice(0,8)}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <button 
+                        onClick={(e) => handleDeleteSession(e, c.id)}
+                        className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                        title="Delete Capture"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md shadow-sm border ${
+                      c.ai_status === 'done' ? 'bg-green-50 text-green-700 border-green-200' :
+                      c.ai_status === 'processing' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                      'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}>
+                      {c.ai_status || 'pending'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center text-sm text-gray-500 mb-1.5">
                   <MapPin className="w-4 h-4 mr-1.5 opacity-70" />
-                  <span className="truncate">Site Capture</span>
+                  <span className="truncate">{c.site_name || 'Site Capture'}</span>
                 </div>
                 <p className="text-xs font-semibold text-gray-400 mt-3">{new Date(c.captured_at).toLocaleDateString()}</p>
               </div>

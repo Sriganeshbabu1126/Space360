@@ -106,6 +106,16 @@ class CaptureSession(Base):
                                back_populates="session",
                                cascade="all, delete-orphan")
 
+    @property
+    def location_label(self):
+        return self.location_point.label if self.location_point else "Unknown Location"
+
+    @property
+    def site_name(self):
+        if self.location_point and self.location_point.floor_plan and self.location_point.floor_plan.site:
+            return self.location_point.floor_plan.site.name
+        return "Unknown Site"
+
 
 class VoiceNote(Base):
     __tablename__ = "voice_notes"

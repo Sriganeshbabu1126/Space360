@@ -95,6 +95,8 @@ class CaptureSessionResponse(BaseModel):
     ai_summary: Optional[str]
     ai_changes: Optional[dict]
     created_at: datetime
+    location_label: Optional[str] = None
+    site_name: Optional[str] = None
 
     class Config:
         from_attributes = True
