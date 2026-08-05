@@ -82,7 +82,12 @@ const FloorPlansPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('File selected:', e.target.files?.[0]);
     if (e.target.files && e.target.files[0]) {
-      setUploadFile(e.target.files[0]);
+      const file = e.target.files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        toast.error('PDFs are not supported. Please upload a JPG or PNG image.');
+        return;
+      }
+      setUploadFile(file);
     }
   };
 
@@ -90,8 +95,13 @@ const FloorPlansPage: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      console.log('File dropped:', e.dataTransfer.files[0]);
-      setUploadFile(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      console.log('File dropped:', file);
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        toast.error('PDFs are not supported. Please upload a JPG or PNG image.');
+        return;
+      }
+      setUploadFile(file);
       console.log('uploadFile state set');
     }
   };
@@ -301,13 +311,13 @@ const FloorPlansPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File (PNG/JPG/PDF)
+                  File (JPG/PNG only (required for pin placement))
                 </label>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".png,.jpg,.jpeg,.pdf"
+                  accept=".png,.jpg,.jpeg"
                   className="hidden"
                 />
                 <div
@@ -340,7 +350,7 @@ const FloorPlansPage: React.FC = () => {
                         Click to browse or drag and drop
                       </p>
                       <p className="text-gray-400 text-sm mt-1">
-                        PNG, JPG, PDF up to 50MB
+                        PNG, JPG up to 50MB
                       </p>
                     </div>
                   )}
