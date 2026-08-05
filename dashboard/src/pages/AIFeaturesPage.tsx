@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles, BarChart, Mic, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getAllSessions, detectChanges, estimateProgress } from '../services/api';
+import { getAllSessions, getAuthHeaders } from '../services/api';
 
 const AIFeaturesPage: React.FC = () => {
   const { isAIPro } = useAuth();
@@ -36,8 +36,14 @@ const AIFeaturesPage: React.FC = () => {
     if (!cdSessionA || !cdSessionB) return;
     setCdLoading(true);
     try {
-      const res = await detectChanges(cdSessionA, cdSessionB);
-      setCdResult(res.data);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`http://localhost:8000/ai/change-detection?session_a_id=${cdSessionA}&session_b_id=${cdSessionB}`, {
+        method: 'POST',
+        headers: { ...headers }
+      });
+      if (!res.ok) throw new Error("Failed to detect changes");
+      const data = await res.json();
+      setCdResult(data);
       toast.success("Change detection complete");
     } catch (error) {
       console.error(error);
@@ -56,8 +62,14 @@ const AIFeaturesPage: React.FC = () => {
     if (!peSession) return;
     setPeLoading(true);
     try {
-      const res = await estimateProgress(peSession);
-      setPeResult(res.data);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`http://localhost:8000/ai/progress-estimation/${peSession}`, {
+        method: 'POST',
+        headers: { ...headers }
+      });
+      if (!res.ok) throw new Error("Failed to estimate progress");
+      const data = await res.json();
+      setPeResult(data);
       toast.success("Progress estimated");
     } catch (error) {
       console.error(error);

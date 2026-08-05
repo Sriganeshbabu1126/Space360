@@ -16,6 +16,16 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+export const getAuthHeaders = async () => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+};
+
+
 // --- Sites ---
 export const getSites = () => 
   api.get("/sites/");
