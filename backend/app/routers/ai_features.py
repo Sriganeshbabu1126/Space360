@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import CaptureSession, VoiceNote
@@ -7,24 +7,13 @@ import google.generativeai as genai
 import httpx
 import base64
 import json
-from app.auth import require_google_ai_pro, get_current_user
-from fastapi import Security, Request
-
-async def optional_auth(request: Request):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        return {"uid": "test_user", "ai_pro": True}
-    try:
-        from app.auth import get_current_user
-        from fastapi.security import HTTPAuthorizationCredentials
-        token = auth_header.split(" ")[1]
-        cred = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-        return get_current_user(cred)
-    except Exception:
-        return {"uid": "test_user", "ai_pro": True}
 
 
 router = APIRouter()
+
+@router.get("/test")
+def test():
+    return {"hello": "world"}
 
 has_api_key = bool(settings.GEMINI_API_KEY)
 print(f"Gemini API key loaded: {'YES' if has_api_key else 'NO'}", flush=True)
@@ -53,8 +42,7 @@ def fetch_local_image_as_base64(session_id: str) -> str:
 async def detect_changes(
     session_a_id: str,
     session_b_id: str,
-    db: Session = Depends(get_db),
-    user: dict = Depends(optional_auth)
+    db: Session = Depends(get_db)
 ):
     check_api_key()
     session_a = db.query(CaptureSession).filter(
@@ -100,8 +88,7 @@ Return ONLY a valid JSON object in this exact format:
 @router.post("/progress-estimation/{session_id}")
 async def estimate_progress(
     session_id: str,
-    db: Session = Depends(get_db),
-    user: dict = Depends(optional_auth)
+    db: Session = Depends(get_db)
 ):
     check_api_key()
     session = db.query(CaptureSession).filter(
@@ -143,8 +130,7 @@ Return ONLY a valid JSON object in this exact format:
 @router.post("/transcribe/{voice_note_id}")
 async def transcribe_voice_note(
     voice_note_id: str,
-    db: Session = Depends(get_db),
-    user: dict = Depends(optional_auth)
+    db: Session = Depends(get_db)
 ):
     check_api_key()
     note = db.query(VoiceNote).filter(
@@ -192,8 +178,7 @@ Return ONLY a valid JSON object in this exact format:
 async def ask_site(
     site_id: str,
     question: str,
-    db: Session = Depends(get_db),
-    user: dict = Depends(optional_auth)
+    db: Session = Depends(get_db)
 ):
     check_api_key()
     # Gather all AI summaries and transcripts for this site
