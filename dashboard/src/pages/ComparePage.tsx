@@ -1,17 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import Viewer360 from '../components/Viewer360';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAllSessions } from '../services/api';
 import { Link2, Link2Off } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+declare global {
+  interface Window {
+    pannellum: any;
+  }
+}
 
 const ComparePage: React.FC = () => {
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionAId, setSessionAId] = useState<string>('');
   const [sessionBId, setSessionBId] = useState<string>('');
-  
   const [isSynced, setIsSynced] = useState(true);
-  const [viewState, setViewState] = useState({ pitch: 0, yaw: 0, hfov: 100 });
-  const [activeViewer, setActiveViewer] = useState<'A' | 'B' | null>(null);
+
+  const viewerARef = useRef<HTMLDivElement>(null);
+  const viewerBRef = useRef<HTMLDivElement>(null);
+  const pannellumA = useRef<any>(null);
+  const pannellumB = useRef<any>(null);
+  const activeViewer = useRef<'A' | 'B' | null>(null);
 
   useEffect(() => {
     document.title = "Compare | Space360";
@@ -42,17 +50,70 @@ const ComparePage: React.FC = () => {
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
-  const handleViewChangeA = (pitch: number, yaw: number, hfov: number) => {
-    if (!isSynced) return;
-    setActiveViewer('A');
-    setViewState({ pitch, yaw, hfov });
-  };
+  // Initialize Viewer A
+  useEffect(() => {
+    if (sessionA && viewerARef.current && window.pannellum) {
+      pannellumA.current = window.pannellum.viewer(viewerARef.current, {
+        type: 'equirectangular',
+        panorama: sessionA.image_url,
+        autoLoad: true,
+        compass: false,
+        showFullscreenCtrl: false,
+      });
+    }
+    return () => {
+      if (pannellumA.current) {
+        pannellumA.current.destroy();
+        pannellumA.current = null;
+      }
+    };
+  }, [sessionA]);
 
-  const handleViewChangeB = (pitch: number, yaw: number, hfov: number) => {
-    if (!isSynced) return;
-    setActiveViewer('B');
-    setViewState({ pitch, yaw, hfov });
-  };
+  // Initialize Viewer B
+  useEffect(() => {
+    if (sessionB && viewerBRef.current && window.pannellum) {
+      pannellumB.current = window.pannellum.viewer(viewerBRef.current, {
+        type: 'equirectangular',
+        panorama: sessionB.image_url,
+        autoLoad: true,
+        compass: false,
+        showFullscreenCtrl: false,
+      });
+    }
+    return () => {
+      if (pannellumB.current) {
+        pannellumB.current.destroy();
+        pannellumB.current = null;
+      }
+    };
+  }, [sessionB]);
+
+  // Sync Loop
+  useEffect(() => {
+    let syncInterval: any;
+    if (isSynced) {
+      syncInterval = setInterval(() => {
+        if (!pannellumA.current || !pannellumB.current) return;
+
+        if (activeViewer.current === 'A') {
+          pannellumB.current.setPitch(pannellumA.current.getPitch(), false);
+          pannellumB.current.setYaw(pannellumA.current.getYaw(), false);
+          pannellumB.current.setHfov(pannellumA.current.getHfov(), false);
+        } else if (activeViewer.current === 'B') {
+          pannellumA.current.setPitch(pannellumB.current.getPitch(), false);
+          pannellumA.current.setYaw(pannellumB.current.getYaw(), false);
+          pannellumA.current.setHfov(pannellumB.current.getHfov(), false);
+        }
+      }, 1000 / 60); // 60fps
+    }
+    
+    return () => {
+      if (syncInterval) clearInterval(syncInterval);
+    };
+  }, [isSynced]);
+
+  const onViewerAInteract = () => { activeViewer.current = 'A'; };
+  const onViewerBInteract = () => { activeViewer.current = 'B'; };
 
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-100px)]">
@@ -79,8 +140,8 @@ const ComparePage: React.FC = () => {
               onClick={() => setIsSynced(!isSynced)}
               className={`flex items-center px-4 py-2 rounded-full font-medium transition-colors ${
                 isSynced 
-                  ? 'bg-brand-100 text-brand-700 hover:bg-brand-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-blue-100 text-blue-700 border-2 border-blue-500 shadow-sm hover:bg-blue-200' 
+                  : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
               }`}
             >
               {isSynced ? (
@@ -117,20 +178,17 @@ const ComparePage: React.FC = () => {
         )}
         
         {/* Left Viewer */}
-        <div className="flex-1 relative flex flex-col border-b lg:border-b-0 lg:border-r border-gray-700">
+        <div 
+          className="flex-1 relative flex flex-col border-b lg:border-b-0 lg:border-r border-gray-700"
+          onPointerDownCapture={onViewerAInteract}
+          onWheelCapture={onViewerAInteract}
+        >
           {sessionA ? (
             <>
               <div className="absolute top-4 left-4 z-20 bg-black/60 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm shadow-md pointer-events-none">
                 {new Date(sessionA.captured_at).toLocaleDateString()} - {sessionA.location_label}
               </div>
-              <Viewer360 
-                id="viewer-a" 
-                imageUrl={sessionA.image_url} 
-                onViewChange={handleViewChangeA}
-                syncPitch={isSynced && activeViewer === 'B' ? viewState.pitch : undefined}
-                syncYaw={isSynced && activeViewer === 'B' ? viewState.yaw : undefined}
-                syncHfov={isSynced && activeViewer === 'B' ? viewState.hfov : undefined}
-              />
+              <div ref={viewerARef} className="w-full h-full"></div>
             </>
           ) : (
              <div className="flex-1 bg-gray-900 flex items-center justify-center text-gray-500">Left view not selected</div>
@@ -138,20 +196,17 @@ const ComparePage: React.FC = () => {
         </div>
 
         {/* Right Viewer */}
-        <div className="flex-1 relative flex flex-col">
+        <div 
+          className="flex-1 relative flex flex-col"
+          onPointerDownCapture={onViewerBInteract}
+          onWheelCapture={onViewerBInteract}
+        >
           {sessionB ? (
             <>
               <div className="absolute top-4 left-4 z-20 bg-black/60 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm shadow-md pointer-events-none">
                 {new Date(sessionB.captured_at).toLocaleDateString()} - {sessionB.location_label}
               </div>
-              <Viewer360 
-                id="viewer-b" 
-                imageUrl={sessionB.image_url} 
-                onViewChange={handleViewChangeB}
-                syncPitch={isSynced && activeViewer === 'A' ? viewState.pitch : undefined}
-                syncYaw={isSynced && activeViewer === 'A' ? viewState.yaw : undefined}
-                syncHfov={isSynced && activeViewer === 'A' ? viewState.hfov : undefined}
-              />
+              <div ref={viewerBRef} className="w-full h-full"></div>
             </>
           ) : (
             <div className="flex-1 bg-gray-900 flex items-center justify-center text-gray-500">Right view not selected</div>
