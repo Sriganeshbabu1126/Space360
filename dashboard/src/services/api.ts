@@ -16,7 +16,7 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-export const getAuthHeaders = async () => {
+export const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const user = auth.currentUser;
   if (user) {
     const token = await user.getIdToken();
