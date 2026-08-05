@@ -34,6 +34,8 @@ export const uploadFloorPlan = (
   form.append("file", file);
   return api.post(`/floor-plans/site/${siteId}`, form);
 };
+export const deleteFloorPlan = (id: string) =>
+  api.delete(`/floor-plans/${id}`);
 
 // --- Locations ---
 export const getLocations = (floorPlanId: string) =>

@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAIPro: boolean;
+  isAdmin: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -18,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAIPro, setIsAIPro] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -29,8 +31,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // For now, let's assume all authenticated users are AI Pro or check their email.
         const tokenResult = await currentUser.getIdTokenResult();
         setIsAIPro(tokenResult.claims.ai_pro === true || currentUser.email?.endsWith('@example.com') || true);
+        setIsAdmin(currentUser.email === 'wincadsg@gmail.com');
       } else {
         setIsAIPro(false);
+        setIsAdmin(false);
       }
       
       setLoading(false);
@@ -61,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     loading,
     isAIPro,
+    isAdmin,
     signIn,
     signOut
   };

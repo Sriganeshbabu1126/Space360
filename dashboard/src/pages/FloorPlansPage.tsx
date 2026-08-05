@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, Eye, MapPin, Plus, List, Map, FileText, Camera, Check, X } from 'lucide-react';
+import { Upload, Eye, MapPin, Plus, List, Map, FileText, Camera, Check, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { getSites, getFloorPlans, getLocations, uploadFloorPlan, createLocation } from '../services/api';
+import { getSites, getFloorPlans, getLocations, uploadFloorPlan, createLocation, deleteFloorPlan } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const FloorPlansPage: React.FC = () => {
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [sites, setSites] = useState<any[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
@@ -97,6 +99,22 @@ const FloorPlansPage: React.FC = () => {
     } catch (error) {
       toast.error("Failed to add pin");
       console.error(error);
+    }
+  };
+
+  const handleDeletePlan = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this floor plan and all its pins?")) {
+      try {
+        await deleteFloorPlan(id);
+        toast.success("Floor plan deleted");
+        if (selectedSiteId) {
+          getFloorPlans(selectedSiteId).then(res => setPlans(res.data)).catch(console.error);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to delete floor plan");
+      }
     }
   };
 
@@ -350,9 +368,20 @@ const FloorPlansPage: React.FC = () => {
             </div>
             <div className="p-5 flex justify-between items-center bg-white">
               <h3 className="font-black text-gray-900 text-xl">{p.label}</h3>
-              <button onClick={() => openPlan(p)} className="flex items-center text-sm font-bold text-brand-700 hover:text-white bg-brand-50 hover:bg-brand-600 px-4 py-2 rounded-lg transition-colors shadow-sm">
-                <Eye className="w-4 h-4 mr-2" /> View Map
-              </button>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button 
+                    onClick={(e) => handleDeletePlan(e, p.id)} 
+                    className="flex items-center justify-center p-2 text-red-500 hover:text-white bg-red-50 hover:bg-red-500 rounded-lg transition-colors shadow-sm"
+                    title="Delete Floor Plan"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button onClick={() => openPlan(p)} className="flex items-center text-sm font-bold text-brand-700 hover:text-white bg-brand-50 hover:bg-brand-600 px-4 py-2 rounded-lg transition-colors shadow-sm">
+                  <Eye className="w-4 h-4 mr-2" /> View Map
+                </button>
+              </div>
             </div>
           </div>
         ))}
