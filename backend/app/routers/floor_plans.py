@@ -9,6 +9,10 @@ import uuid
 
 router = APIRouter()
 
+@router.get("/", response_model=List[FloorPlanResponse])
+def get_all_floor_plans(db: Session = Depends(get_db)):
+    return db.query(FloorPlan).all()
+
 @router.get("/site/{site_id}", response_model=List[FloorPlanResponse])
 def list_floor_plans(site_id: str, db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == site_id).first()

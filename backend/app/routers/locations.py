@@ -8,6 +8,10 @@ import uuid
 
 router = APIRouter()
 
+@router.get("/", response_model=List[LocationPointResponse])
+def get_all_locations(db: Session = Depends(get_db)):
+    return db.query(LocationPoint).all()
+
 @router.get("/floor-plan/{floor_plan_id}",
             response_model=List[LocationPointResponse])
 def list_locations(floor_plan_id: str, 

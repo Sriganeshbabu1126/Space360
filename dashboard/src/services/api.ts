@@ -25,6 +25,7 @@ export const getSite = (id: string) =>
   api.get(`/sites/${id}`);
 
 // --- Floor Plans ---
+export const getAllFloorPlans = () => api.get("/floor-plans/");
 export const getFloorPlans = (siteId: string) =>
   api.get(`/floor-plans/site/${siteId}`);
 export const uploadFloorPlan = (
@@ -38,6 +39,7 @@ export const deleteFloorPlan = (id: string) =>
   api.delete(`/floor-plans/${id}`);
 
 // --- Locations ---
+export const getAllLocations = () => api.get("/locations/");
 export const getLocations = (floorPlanId: string) =>
   api.get(`/locations/floor-plan/${floorPlanId}`);
 export const createLocation = (

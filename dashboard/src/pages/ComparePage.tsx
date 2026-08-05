@@ -1,143 +1,163 @@
 import React, { useState, useEffect } from 'react';
-import CompareViewer from '../components/CompareViewer';
-import { useAuth } from '../context/AuthContext';
-import { Sparkles } from 'lucide-react';
+import Viewer360 from '../components/Viewer360';
+import { getAllSessions } from '../services/api';
+import { Link2, Link2Off } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ComparePage: React.FC = () => {
-  const { isAIPro } = useAuth();
-  const [sites, setSites] = useState<any[]>([]);
-  const [selectedSite, setSelectedSite] = useState('');
-  
   const [sessions, setSessions] = useState<any[]>([]);
-  const [sessionA, setSessionA] = useState<any>(null);
-  const [sessionB, setSessionB] = useState<any>(null);
+  const [sessionAId, setSessionAId] = useState<string>('');
+  const [sessionBId, setSessionBId] = useState<string>('');
   
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [isSynced, setIsSynced] = useState(true);
+  const [viewState, setViewState] = useState({ pitch: 0, yaw: 0, hfov: 100 });
+  const [activeViewer, setActiveViewer] = useState<'A' | 'B' | null>(null);
 
   useEffect(() => {
     document.title = "Compare | Space360";
-    setSites([{ id: '1', name: 'Downtown Highrise' }]);
     
-    // Mock sessions for demonstration
-    const mockSessions = [
-      { id: 's1', imageUrl: 'https://pannellum.org/images/alma.jpg', captured_at: '2023-10-01T10:00:00Z', location_label: 'Level 1 Center' },
-      { id: 's2', imageUrl: 'https://pannellum.org/images/cerro-toco-0.jpg', captured_at: '2023-10-15T14:30:00Z', location_label: 'Level 1 Center' }
-    ];
-    setSessions(mockSessions);
-    setSessionA(mockSessions[0]);
-    setSessionB(mockSessions[1]);
+    const fetchSessions = async () => {
+      try {
+        const res = await getAllSessions();
+        const sortedSessions = (res.data || []).sort((a: any, b: any) => 
+          new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
+        );
+        setSessions(sortedSessions);
+        
+        if (sortedSessions.length > 0) {
+          setSessionAId(sortedSessions[0].id);
+          if (sortedSessions.length > 1) {
+            setSessionBId(sortedSessions[1].id);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch sessions for compare", error);
+        toast.error("Failed to load captures");
+      }
+    };
+    
+    fetchSessions();
   }, []);
 
-  const handleRunAI = async () => {
-    if (!sessionA || !sessionB) return;
-    setIsDetecting(true);
-    try {
-      // Mock API call delay
-      setTimeout(() => {
-        setAiResult({
-          summary: "Significant structural progress detected since last capture.",
-          progress_indicator: "on_track",
-          changes: [
-            { description: "Concrete pillars poured", category: "structural", significance: "high" },
-            { description: "HVAC ducting installed in ceiling", category: "mechanical", significance: "medium" }
-          ]
-        });
-        toast.success("AI Change Detection completed");
-        setIsDetecting(false);
-      }, 2000);
-      
-    } catch (error) {
-      toast.error('AI analysis failed');
-      setIsDetecting(false);
-    }
+  const sessionA = sessions.find(s => s.id === sessionAId);
+  const sessionB = sessions.find(s => s.id === sessionBId);
+
+  const handleViewChangeA = (pitch: number, yaw: number, hfov: number) => {
+    if (!isSynced) return;
+    setActiveViewer('A');
+    setViewState({ pitch, yaw, hfov });
+  };
+
+  const handleViewChangeB = (pitch: number, yaw: number, hfov: number) => {
+    if (!isSynced) return;
+    setActiveViewer('B');
+    setViewState({ pitch, yaw, hfov });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="card">
-        <h2 className="text-xl font-bold mb-4">Select Location to Compare</h2>
-        <div className="flex space-x-4">
-          <select className="input max-w-xs" value={selectedSite} onChange={e => setSelectedSite(e.target.value)}>
-            <option value="">Select Site...</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        
-        <div className="mt-6 flex space-x-4 overflow-x-auto pb-2">
-          {sessions.map(s => (
-            <div key={s.id} 
-                 className={`min-w-[120px] p-2 border-2 rounded-lg cursor-pointer transition-colors ${
-                   sessionA?.id === s.id ? 'border-brand-500 bg-brand-50' :
-                   sessionB?.id === s.id ? 'border-gray-500 bg-gray-50' : 'border-transparent hover:border-brand-300'
-                 }`}
-                 onClick={() => {
-                   if (sessionA?.id === s.id) setSessionA(null);
-                   else if (sessionB?.id === s.id) setSessionB(null);
-                   else if (!sessionA) setSessionA(s);
-                   else setSessionB(s);
-                 }}>
-              <div className="h-16 bg-gray-200 rounded mb-2 overflow-hidden shadow-sm">
-                <img src={s.imageUrl} className="object-cover w-full h-full" alt="thumb" />
-              </div>
-              <p className="text-xs font-medium text-center">{new Date(s.captured_at).toLocaleDateString()}</p>
-              <div className="flex justify-center space-x-1 mt-1">
-                {sessionA?.id === s.id && <span className="bg-brand-600 text-white text-[10px] px-1.5 rounded">A</span>}
-                {sessionB?.id === s.id && <span className="bg-gray-600 text-white text-[10px] px-1.5 rounded">B</span>}
-              </div>
-            </div>
-          ))}
+    <div className="space-y-6 flex flex-col h-[calc(100vh-100px)]">
+      <div className="card shrink-0 flex items-center justify-between">
+        <div className="flex space-x-6 items-end w-full">
+          <div className="flex-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Left Viewer (A)</label>
+            <select 
+              className="input w-full" 
+              value={sessionAId} 
+              onChange={e => setSessionAId(e.target.value)}
+            >
+              <option value="">Select a capture...</option>
+              {sessions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id.slice(0, 8)} ({s.site_name || 'Site'})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="shrink-0 pb-1">
+            <button
+              onClick={() => setIsSynced(!isSynced)}
+              className={`flex items-center px-4 py-2 rounded-full font-medium transition-colors ${
+                isSynced 
+                  ? 'bg-brand-100 text-brand-700 hover:bg-brand-200' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {isSynced ? (
+                <><Link2 className="w-5 h-5 mr-2" /> Synced</>
+              ) : (
+                <><Link2Off className="w-5 h-5 mr-2" /> Not Synced</>
+              )}
+            </button>
+          </div>
+          
+          <div className="flex-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Right Viewer (B)</label>
+            <select 
+              className="input w-full" 
+              value={sessionBId} 
+              onChange={e => setSessionBId(e.target.value)}
+            >
+              <option value="">Select a capture...</option>
+              {sessions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id.slice(0, 8)} ({s.site_name || 'Site'})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {sessionA && sessionB && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="card p-0 overflow-hidden shadow-lg border-gray-200 rounded-xl">
-             <CompareViewer sessionA={sessionA} sessionB={sessionB} />
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-black relative">
+        {!sessionA && !sessionB && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-400 z-10 bg-gray-50">
+            Please select captures to compare.
           </div>
-
-          {isAIPro && (
-            <div className="flex justify-center">
-              <button 
-                onClick={handleRunAI} 
-                disabled={isDetecting}
-                className="btn-primary flex items-center px-6 py-3 text-lg rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:hover:translate-y-0"
-              >
-                <Sparkles className={`w-5 h-5 mr-2 ${isDetecting ? 'animate-spin' : ''}`} />
-                {isDetecting ? 'Analyzing changes...' : 'Run AI Change Detection'}
-              </button>
-            </div>
-          )}
-
-          {aiResult && (
-            <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 shadow-sm rounded-xl">
-              <div className="flex items-center mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                  <Sparkles className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">AI Analysis Results</h3>
+        )}
+        
+        {/* Left Viewer */}
+        <div className="flex-1 relative flex flex-col border-b lg:border-b-0 lg:border-r border-gray-700">
+          {sessionA ? (
+            <>
+              <div className="absolute top-4 left-4 z-20 bg-black/60 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm shadow-md pointer-events-none">
+                {new Date(sessionA.captured_at).toLocaleDateString()} - {sessionA.location_label}
               </div>
-              <p className="text-gray-700 font-medium mb-6 text-lg">{aiResult.summary}</p>
-              
-              <div className="space-y-3">
-                {aiResult.changes.map((change: any, i: number) => (
-                  <div key={i} className="flex items-start bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    <span className={`mt-0.5 px-2.5 py-1 text-xs font-bold rounded-full mr-4 shadow-sm border ${
-                      change.significance === 'high' ? 'bg-red-50 text-red-700 border-red-200' :
-                      change.significance === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                      'bg-green-50 text-green-700 border-green-200'
-                    }`}>
-                      {change.category.toUpperCase()}
-                    </span>
-                    <p className="text-gray-800 text-sm leading-relaxed">{change.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+              <Viewer360 
+                id="viewer-a" 
+                imageUrl={sessionA.image_url} 
+                onViewChange={handleViewChangeA}
+                syncPitch={isSynced && activeViewer === 'B' ? viewState.pitch : undefined}
+                syncYaw={isSynced && activeViewer === 'B' ? viewState.yaw : undefined}
+                syncHfov={isSynced && activeViewer === 'B' ? viewState.hfov : undefined}
+              />
+            </>
+          ) : (
+             <div className="flex-1 bg-gray-900 flex items-center justify-center text-gray-500">Left view not selected</div>
           )}
         </div>
-      )}
+
+        {/* Right Viewer */}
+        <div className="flex-1 relative flex flex-col">
+          {sessionB ? (
+            <>
+              <div className="absolute top-4 left-4 z-20 bg-black/60 text-white px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm shadow-md pointer-events-none">
+                {new Date(sessionB.captured_at).toLocaleDateString()} - {sessionB.location_label}
+              </div>
+              <Viewer360 
+                id="viewer-b" 
+                imageUrl={sessionB.image_url} 
+                onViewChange={handleViewChangeB}
+                syncPitch={isSynced && activeViewer === 'A' ? viewState.pitch : undefined}
+                syncYaw={isSynced && activeViewer === 'A' ? viewState.yaw : undefined}
+                syncHfov={isSynced && activeViewer === 'A' ? viewState.hfov : undefined}
+              />
+            </>
+          ) : (
+            <div className="flex-1 bg-gray-900 flex items-center justify-center text-gray-500">Right view not selected</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
