@@ -11,6 +11,16 @@ import uuid
 
 router = APIRouter()
 
+@router.get("/", response_model=List[CaptureSessionResponse])
+def get_all_sessions(
+    db: Session = Depends(get_db),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0)
+):
+    return (db.query(CaptureSession)
+              .order_by(CaptureSession.captured_at.desc())
+              .offset(offset).limit(limit).all())
+
 @router.get("/location/{location_id}",
             response_model=List[CaptureSessionResponse])
 def list_sessions(

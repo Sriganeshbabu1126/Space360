@@ -43,14 +43,14 @@ export const createLocation = (
   api.post(`/locations/floor-plan/${floorPlanId}`, data);
 
 // --- Sessions ---
+export const getAllSessions = () => api.get("/sessions/");
 export const getSessions = (locationId: string) =>
   api.get(`/sessions/location/${locationId}`);
 export const uploadSession = (
-  locationId: string, file: File,
-  deviceModel?: string) => {
+  locationId: string, file: File, notes?: string) => {
   const form = new FormData();
   form.append("file", file);
-  if (deviceModel) form.append("device_model", deviceModel);
+  if (notes) form.append("device_model", notes);
   return api.post(`/sessions/location/${locationId}`, form);
 };
 export const compareSessions = (
