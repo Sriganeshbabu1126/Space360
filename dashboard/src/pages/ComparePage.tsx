@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAllSessions } from '../services/api';
-import { Link2, Link2Off } from 'lucide-react';
+import { Link2, Link2Off, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
 
 declare global {
   interface Window {
@@ -115,6 +116,89 @@ const ComparePage: React.FC = () => {
   const onViewerAInteract = () => { activeViewer.current = 'A'; };
   const onViewerBInteract = () => { activeViewer.current = 'B'; };
 
+  const fetchImageAsBase64 = async (url: string) => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const [exporting, setExporting] = useState(false);
+  const handleExportPDF = async () => {
+    if (!sessionA || !sessionB) {
+      toast.error("Please select both captures to export.");
+      return;
+    }
+    setExporting(true);
+    toast.loading("Generating PDF...", { id: 'pdf-toast' });
+    try {
+      const doc = new jsPDF();
+      const margin = 20;
+      let y = margin;
+      
+      // Title & Meta
+      doc.setFontSize(22);
+      doc.text("Site Comparison Report", margin, y);
+      y += 10;
+      
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(`Site: ${sessionA.site_name || 'N/A'}`, margin, y);
+      y += 6;
+      doc.text(`Location: ${sessionA.location_label || 'N/A'}`, margin, y);
+      y += 15;
+      
+      // Images
+      const imgWidth = 80;
+      const imgHeight = 40;
+      
+      try {
+        const urlA = sessionA.thumbnail_url || sessionA.image_url;
+        const urlB = sessionB.thumbnail_url || sessionB.image_url;
+        const b64A = await fetchImageAsBase64(urlA);
+        const b64B = await fetchImageAsBase64(urlB);
+        
+        doc.addImage(b64A, "JPEG", margin, y, imgWidth, imgHeight);
+        doc.addImage(b64B, "JPEG", margin + imgWidth + 10, y, imgWidth, imgHeight);
+        y += imgHeight + 8;
+        
+        // Dates
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.text(`Before: ${new Date(sessionA.captured_at).toLocaleDateString()}`, margin, y);
+        doc.text(`After: ${new Date(sessionB.captured_at).toLocaleDateString()}`, margin + imgWidth + 10, y);
+        y += 15;
+      } catch (err) {
+        console.error("Failed to embed images", err);
+        doc.text("[Image Failed to Load]", margin, y);
+        y += 15;
+      }
+      
+      // Summary
+      doc.setFontSize(14);
+      doc.text("AI Summary", margin, y);
+      y += 8;
+      
+      doc.setFontSize(11);
+      doc.setTextColor(80);
+      const summaryText = "This is a placeholder for the AI summary. Changes identified during the comparison will be listed here once the AI feature is re-enabled.";
+      const lines = doc.splitTextToSize(summaryText, 170);
+      doc.text(lines, margin, y);
+      
+      doc.save(`Space360_Report_${sessionA.location_point_id.slice(0, 8)}.pdf`);
+      toast.success("PDF Exported!", { id: 'pdf-toast' });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export PDF", { id: 'pdf-toast' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-100px)]">
       <div className="card shrink-0 flex items-center justify-between">
@@ -166,6 +250,16 @@ const ComparePage: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="shrink-0 pb-1 pl-4 border-l border-gray-200">
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting || !sessionA || !sessionB}
+              className="flex items-center px-4 py-2 rounded-full font-medium transition-colors bg-brand-600 text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4 mr-2" /> {exporting ? "Exporting..." : "Export PDF"}
+            </button>
           </div>
         </div>
       </div>
