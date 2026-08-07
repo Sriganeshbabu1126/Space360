@@ -101,23 +101,26 @@ const AIFeaturesPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
         {/* Card 1: Change Detection */}
-        <div className="card flex flex-col shadow-md border-t-4 border-t-blue-500">
+        <div className="card flex flex-col shadow-md border-t-4 border-t-blue-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+            <span className="bg-blue-600 text-white px-4 py-2 rounded-full font-bold shadow-lg transform -rotate-12 border-2 border-white">Coming Soon</span>
+          </div>
           <div className="flex items-center mb-2">
             <Sparkles className="w-6 h-6 text-blue-600 mr-2" />
             <h3 className="text-lg font-bold text-gray-900">Change Detection</h3>
           </div>
           <p className="text-sm text-gray-500 mb-6">Compare two captures and let Gemini 2.0 list all visible changes.</p>
           
-          <div className="space-y-4 mb-6 flex-1">
-            <select className="input w-full" value={cdSessionA} onChange={e => setCdSessionA(e.target.value)}>
+          <div className="space-y-4 mb-6 flex-1 opacity-50">
+            <select className="input w-full" value={cdSessionA} onChange={e => setCdSessionA(e.target.value)} disabled>
               <option value="">Select Base Capture (A)...</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{new Date(s.captured_at).toLocaleDateString()} - {s.location_label}</option>)}
             </select>
-            <select className="input w-full" value={cdSessionB} onChange={e => setCdSessionB(e.target.value)}>
+            <select className="input w-full" value={cdSessionB} onChange={e => setCdSessionB(e.target.value)} disabled>
               <option value="">Select New Capture (B)...</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{new Date(s.captured_at).toLocaleDateString()} - {s.location_label}</option>)}
             </select>
-            <button onClick={runChangeDetection} disabled={cdLoading || !cdSessionA || !cdSessionB} className="btn-primary w-full flex justify-center items-center py-2.5">
+            <button onClick={runChangeDetection} disabled={true} className="btn-primary w-full flex justify-center items-center py-2.5">
               {cdLoading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> : <Sparkles className="w-4 h-4 mr-2" />}
               {cdLoading ? "Gemini is analyzing..." : "Analyse Changes"}
             </button>
@@ -152,19 +155,22 @@ const AIFeaturesPage: React.FC = () => {
         </div>
 
         {/* Card 2: Progress Estimation */}
-        <div className="card flex flex-col shadow-md border-t-4 border-t-green-500">
+        <div className="card flex flex-col shadow-md border-t-4 border-t-green-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+            <span className="bg-green-600 text-white px-4 py-2 rounded-full font-bold shadow-lg transform -rotate-12 border-2 border-white">Coming Soon</span>
+          </div>
           <div className="flex items-center mb-2">
             <BarChart className="w-6 h-6 text-green-600 mr-2" />
             <h3 className="text-lg font-bold text-gray-900">Progress Estimation</h3>
           </div>
           <p className="text-sm text-gray-500 mb-6">Estimate completion % and categorize work status for a capture using AI vision.</p>
           
-          <div className="space-y-4 mb-6 flex-1">
-            <select className="input w-full" value={peSession} onChange={e => setPeSession(e.target.value)}>
+          <div className="space-y-4 mb-6 flex-1 opacity-50">
+            <select className="input w-full" value={peSession} onChange={e => setPeSession(e.target.value)} disabled>
               <option value="">Select Capture...</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{new Date(s.captured_at).toLocaleDateString()} - {s.location_label}</option>)}
             </select>
-            <button onClick={runProgressEstimation} disabled={peLoading || !peSession} className="btn-primary bg-green-600 hover:bg-green-700 w-full flex justify-center items-center py-2.5 shadow-md">
+            <button onClick={runProgressEstimation} disabled={true} className="btn-primary bg-green-600 hover:bg-green-700 w-full flex justify-center items-center py-2.5 shadow-md">
               {peLoading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> : <BarChart className="w-4 h-4 mr-2" />}
               {peLoading ? "Gemini is analyzing..." : "Estimate Progress"}
             </button>
