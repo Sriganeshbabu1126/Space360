@@ -37,6 +37,7 @@ const AIFeaturesPage: React.FC = () => {
     setCdLoading(true);
     try {
       const headers = await getAuthHeaders();
+      console.log(`[DEBUG] runChangeDetection - sending sessionA: ${cdSessionA}, sessionB: ${cdSessionB}`);
       const res = await fetch(`http://localhost:8000/ai/change-detection?session_a_id=${cdSessionA}&session_b_id=${cdSessionB}`, {
         method: 'POST',
         headers: { ...headers }
@@ -63,6 +64,7 @@ const AIFeaturesPage: React.FC = () => {
     setPeLoading(true);
     try {
       const headers = await getAuthHeaders();
+      console.log(`[DEBUG] runProgressEstimation - sending peSession: ${peSession}`);
       const res = await fetch(`http://localhost:8000/ai/progress-estimation/${peSession}`, {
         method: 'POST',
         headers: { ...headers }
