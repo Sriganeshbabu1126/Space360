@@ -18,6 +18,19 @@ class SeverityEnum(str, Enum):
     warning = "warning"
     critical = "critical"
 
+class AccessLevelEnum(str, Enum):
+    view_only = "view_only"
+    comment_and_change_status = "comment_and_change_status"
+    create_issue = "create_issue"
+    close_and_review = "close_and_review"
+
+class IssueStatusEnum(str, Enum):
+    open = "open"
+    in_review = "in_review"
+    pending = "pending"
+    closed = "closed"
+    critical = "critical"
+
 # --- Site Schemas ---
 class SiteCreate(BaseModel):
     name: str
@@ -130,6 +143,97 @@ class AnnotationResponse(BaseModel):
     severity: SeverityEnum
     resolved: bool
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Contractor Schemas ---
+class ContractorCreate(BaseModel):
+    name: str
+    company: Optional[str] = None
+    trade: Optional[str] = None
+    designation: Optional[str] = None
+    contact: Optional[str] = None
+    access_level: Optional[AccessLevelEnum] = AccessLevelEnum.view_only
+
+class ContractorUpdate(BaseModel):
+    name: Optional[str] = None
+    company: Optional[str] = None
+    trade: Optional[str] = None
+    designation: Optional[str] = None
+    contact: Optional[str] = None
+    access_level: Optional[AccessLevelEnum] = None
+
+class ContractorResponse(BaseModel):
+    id: str
+    name: str
+    company: Optional[str]
+    trade: Optional[str]
+    designation: Optional[str]
+    contact: Optional[str]
+    access_level: AccessLevelEnum
+    created_by: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Issue Assignment Schemas ---
+class IssueAssignmentResponse(BaseModel):
+    id: str
+    issue_id: str
+    contractor_id: str
+    assigned_by: str
+    assigned_at: datetime
+    contractor: Optional[ContractorResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --- Issue Comment Schemas ---
+class IssueCommentCreate(BaseModel):
+    comment_text: str
+
+class IssueCommentResponse(BaseModel):
+    id: str
+    issue_id: str
+    author: str
+    comment_text: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Issue Schemas ---
+class IssueCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    location_id: str
+    session_a_id: Optional[str] = None
+    session_b_id: Optional[str] = None
+    contractor_ids: Optional[List[str]] = []
+
+class IssueUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[IssueStatusEnum] = None
+
+class IssueResponse(BaseModel):
+    id: str
+    title: str
+    description: Optional[str]
+    status: IssueStatusEnum
+    location_id: str
+    session_a_id: Optional[str]
+    session_b_id: Optional[str]
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    assignments: List[IssueAssignmentResponse] = []
 
     class Config:
         from_attributes = True

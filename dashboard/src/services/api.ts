@@ -57,14 +57,16 @@ export const createLocation = (
   api.post(`/locations/floor-plan/${floorPlanId}`, data);
 
 // --- Sessions ---
-export const getAllSessions = () => api.get("/sessions/");
+export const getAllSessions = (siteId?: string) => 
+  api.get(`/sessions/${siteId ? `?site_id=${siteId}` : ''}`);
 export const getSessions = (locationId: string) =>
   api.get(`/sessions/location/${locationId}`);
 export const uploadSession = (
-  locationId: string, file: File, notes?: string) => {
+  locationId: string, file: File, notes?: string, capturedAt?: string) => {
   const form = new FormData();
   form.append("file", file);
   if (notes) form.append("device_model", notes);
+  if (capturedAt) form.append("captured_at", capturedAt);
   return api.post(`/sessions/location/${locationId}`, form);
 };
 export const compareSessions = (
@@ -92,3 +94,26 @@ export const createAnnotation = (
   api.post(`/annotations/session/${sessionId}`, data);
 export const resolveAnnotation = (annotationId: string) =>
   api.patch(`/annotations/${annotationId}/resolve`);
+
+// --- Contractors ---
+export const getContractors = () => api.get('/contractors/');
+export const createContractor = (data: any) => api.post('/contractors/', data);
+export const updateContractor = (id: string, data: any) => api.put(`/contractors/${id}`, data);
+export const deleteContractor = (id: string) => api.delete(`/contractors/${id}`);
+
+// --- Issues ---
+export const getIssues = (status?: string, locationId?: string) => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (locationId) params.append('location_id', locationId);
+  const query = params.toString();
+  return api.get(`/issues/${query ? `?${query}` : ''}`);
+};
+export const createIssue = (data: any) => api.post('/issues/', data);
+export const getIssue = (id: string) => api.get(`/issues/${id}`);
+export const updateIssue = (id: string, data: any) => api.put(`/issues/${id}`, data);
+export const deleteIssue = (id: string) => api.delete(`/issues/${id}`);
+export const assignContractorToIssue = (id: string, contractorId: string) => api.post(`/issues/${id}/assign`, { contractor_id: contractorId });
+export const unassignContractorFromIssue = (id: string, contractorId: string) => api.delete(`/issues/${id}/assignments/${contractorId}`);
+export const getIssueComments = (id: string) => api.get(`/issues/${id}/comments`);
+export const addIssueComment = (id: string, comment_text: string) => api.post(`/issues/${id}/comments`, { comment_text });

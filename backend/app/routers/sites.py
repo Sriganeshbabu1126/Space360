@@ -4,6 +4,7 @@ from typing import List
 from app.database import get_db
 from app.models import Site
 from app.schemas import SiteCreate, SiteUpdate, SiteResponse
+from app.auth import require_admin
 import uuid
 
 router = APIRouter()
@@ -17,14 +18,15 @@ def list_sites(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=SiteResponse, 
              status_code=status.HTTP_201_CREATED)
-def create_site(payload: SiteCreate, db: Session = Depends(get_db)):
+def create_site(payload: SiteCreate, db: Session = Depends(get_db),
+                current_user: dict = Depends(require_admin)):
     site = Site(
         id=generate_uuid(),
         name=payload.name,
         address=payload.address,
         gps_bounds=payload.gps_bounds,
         org_id=payload.org_id,
-        created_by="system",  # will be replaced by auth user later
+        created_by=current_user.get("email", "system"),
     )
     db.add(site)
     db.commit()

@@ -10,7 +10,9 @@ import {
   Sparkles, 
   FileBarChart,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Users,
+  AlertCircle
 } from 'lucide-react';
 
 const navItems = [
@@ -18,16 +20,23 @@ const navItems = [
   { name: 'Sites', path: '/sites', icon: Building2 },
   { name: 'Floor Plans', path: '/floor-plans', icon: Map },
   { name: 'Captures', path: '/captures', icon: Camera },
-  { name: 'Compare', path: '/compare', icon: GitCompare },
+  // { name: 'Compare', path: '/compare', icon: GitCompare },
+  { name: 'Issues', path: '/issues', icon: AlertCircle },
   { name: 'AI Features', path: '/ai', icon: Sparkles },
   { name: 'Reports', path: '/reports', icon: FileBarChart },
+  { name: 'Project Members', path: '/members', icon: Users },
 ];
 
 const Layout: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
 
   const currentNavItem = navItems.find(item => item.path === location.pathname) || { name: 'Dashboard' };
+
+  const displayedNavItems = navItems.filter(item => {
+    if (item.name === 'Project Members' && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -39,7 +48,7 @@ const Layout: React.FC = () => {
         </div>
         
         <nav className="flex-1 py-4 space-y-1 overflow-y-auto px-3">
-          {navItems.map((item) => (
+          {displayedNavItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}

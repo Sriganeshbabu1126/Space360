@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getAllSessions } from '../services/api';
+import { getAllSessions, getSites } from '../services/api';
 import { Link2, Link2Off, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
@@ -12,6 +12,8 @@ declare global {
 
 const ComparePage: React.FC = () => {
   const [sessions, setSessions] = useState<any[]>([]);
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [sessionAId, setSessionAId] = useState<string>('');
   const [sessionBId, setSessionBId] = useState<string>('');
   const [isSynced, setIsSynced] = useState(true);
@@ -24,10 +26,13 @@ const ComparePage: React.FC = () => {
 
   useEffect(() => {
     document.title = "Compare | Space360";
-    
+    getSites().then(res => setSites(res.data)).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await getAllSessions();
+        const res = await getAllSessions(selectedSiteId || undefined);
         const sortedSessions = (res.data || []).sort((a: any, b: any) => 
           new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
         );
@@ -46,14 +51,14 @@ const ComparePage: React.FC = () => {
     };
     
     fetchSessions();
-  }, []);
+  }, [selectedSiteId]);
 
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
   // Initialize Viewer A
   useEffect(() => {
-    if (sessionA && viewerARef.current && window.pannellum) {
+    if (sessionA && sessionA.image_url && viewerARef.current && window.pannellum) {
       pannellumA.current = window.pannellum.viewer(viewerARef.current, {
         type: 'equirectangular',
         panorama: sessionA.image_url,
@@ -72,7 +77,7 @@ const ComparePage: React.FC = () => {
 
   // Initialize Viewer B
   useEffect(() => {
-    if (sessionB && viewerBRef.current && window.pannellum) {
+    if (sessionB && sessionB.image_url && viewerBRef.current && window.pannellum) {
       pannellumB.current = window.pannellum.viewer(viewerBRef.current, {
         type: 'equirectangular',
         panorama: sessionB.image_url,
@@ -96,14 +101,24 @@ const ComparePage: React.FC = () => {
       syncInterval = setInterval(() => {
         if (!pannellumA.current || !pannellumB.current) return;
 
-        if (activeViewer.current === 'A') {
-          pannellumB.current.setPitch(pannellumA.current.getPitch(), false);
-          pannellumB.current.setYaw(pannellumA.current.getYaw(), false);
-          pannellumB.current.setHfov(pannellumA.current.getHfov(), false);
-        } else if (activeViewer.current === 'B') {
-          pannellumA.current.setPitch(pannellumB.current.getPitch(), false);
-          pannellumA.current.setYaw(pannellumB.current.getYaw(), false);
-          pannellumA.current.setHfov(pannellumB.current.getHfov(), false);
+        try {
+          if (activeViewer.current === 'A') {
+            const pitch = pannellumA.current.getPitch();
+            if (pitch !== undefined) {
+              pannellumB.current.setPitch(pitch, false);
+              pannellumB.current.setYaw(pannellumA.current.getYaw(), false);
+              pannellumB.current.setHfov(pannellumA.current.getHfov(), false);
+            }
+          } else if (activeViewer.current === 'B') {
+            const pitch = pannellumB.current.getPitch();
+            if (pitch !== undefined) {
+              pannellumA.current.setPitch(pitch, false);
+              pannellumA.current.setYaw(pannellumB.current.getYaw(), false);
+              pannellumA.current.setHfov(pannellumB.current.getHfov(), false);
+            }
+          }
+        } catch (e) {
+          // Pannellum might throw if the image is still loading; ignore
         }
       }, 1000 / 60); // 60fps
     }
@@ -189,7 +204,7 @@ const ComparePage: React.FC = () => {
       const lines = doc.splitTextToSize(summaryText, 170);
       doc.text(lines, margin, y);
       
-      doc.save(`Space360_Report_${sessionA.location_point_id.slice(0, 8)}.pdf`);
+      doc.save(`Space360_Report_${sessionA.location_point_id?.slice(0, 8) || 'report'}.pdf`);
       toast.success("PDF Exported!", { id: 'pdf-toast' });
     } catch (error) {
       console.error(error);
@@ -204,6 +219,18 @@ const ComparePage: React.FC = () => {
       <div className="card shrink-0 flex items-center justify-between">
         <div className="flex space-x-6 items-end w-full">
           <div className="flex-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Site</label>
+            <select 
+              className="input w-full" 
+              value={selectedSiteId} 
+              onChange={e => setSelectedSiteId(e.target.value)}
+            >
+              <option value="">All Sites</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          <div className="flex-1">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Left Viewer (A)</label>
             <select 
               className="input w-full" 
@@ -213,7 +240,7 @@ const ComparePage: React.FC = () => {
               <option value="">Select a capture...</option>
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>
-                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id.slice(0, 8)} ({s.site_name || 'Site'})
+                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
                 </option>
               ))}
             </select>
@@ -246,7 +273,7 @@ const ComparePage: React.FC = () => {
               <option value="">Select a capture...</option>
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>
-                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id.slice(0, 8)} ({s.site_name || 'Site'})
+                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
                 </option>
               ))}
             </select>

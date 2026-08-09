@@ -39,3 +39,16 @@ def require_google_ai_pro(
             detail="This feature requires a Google AI Pro account"
         )
     return user
+
+def require_admin(
+    user: dict = Depends(get_current_user)
+) -> dict:
+    """
+    Gate site creation to admins only.
+    """
+    if user.get("email") != "wincadsg@gmail.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can perform this action"
+        )
+    return user

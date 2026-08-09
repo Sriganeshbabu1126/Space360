@@ -4,7 +4,7 @@ from typing import List
 from app.database import get_db
 from app.models import FloorPlan, Site
 from app.schemas import FloorPlanCreate, FloorPlanResponse
-from app.services.gcs_service import upload_floor_plan
+from app.services.gcs_service import upload_private_file, get_signed_url
 import uuid
 
 router = APIRouter()
@@ -37,24 +37,16 @@ async def create_floor_plan(
     file_bytes = await file.read()
     content_type = file.content_type or "image/png"
 
-    try:
-        image_url = upload_floor_plan(
-            file_bytes, site_id, floor_plan_id, content_type
-        )
-    except Exception as e:
-        print("GCS Upload Failed:", e)
-        import os
-        os.makedirs("static/floor-plans", exist_ok=True)
-        extension = ".png"
-        if "jpeg" in content_type.lower() or "jpg" in content_type.lower():
-            extension = ".jpg"
-        elif "pdf" in content_type.lower():
-            extension = ".pdf"
-        local_filename = f"{floor_plan_id}{extension}"
-        local_path = os.path.join("static", "floor-plans", local_filename)
-        with open(local_path, "wb") as f:
-            f.write(file_bytes)
-        image_url = f"http://localhost:8000/static/floor-plans/{local_filename}"
+    extension = "png"
+    if "jpeg" in content_type.lower() or "jpg" in content_type.lower():
+        extension = "jpg"
+    elif "pdf" in content_type.lower():
+        extension = "pdf"
+        
+    path = f"sites/{site_id}/floor-plans/{floor_plan_id}.{extension}"
+
+    upload_private_file(file_bytes, path, content_type)
+    image_url = get_signed_url(path)
 
     floor_plan = FloorPlan(
         id=floor_plan_id,

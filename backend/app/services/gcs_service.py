@@ -4,6 +4,10 @@ from PIL import Image
 import io
 import uuid
 import os
+import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT)
 bucket = client.bucket(settings.GCS_BUCKET_NAME)
@@ -15,6 +19,21 @@ def upload_file(file_bytes: bytes, destination_path: str,
     blob.upload_from_string(file_bytes, content_type=content_type)
     blob.make_public()
     return blob.public_url
+
+def upload_private_file(file_bytes: bytes, destination_path: str, 
+                        content_type: str = "image/jpeg") -> None:
+    """Upload raw bytes to GCS without making it public."""
+    blob = bucket.blob(destination_path)
+    blob.upload_from_string(file_bytes, content_type=content_type)
+
+def get_signed_url(destination_path: str, expiration_hours: int = 1) -> str:
+    """Generate a v4 signed URL valid for expiration_hours."""
+    blob = bucket.blob(destination_path)
+    return blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(hours=expiration_hours),
+        method="GET"
+    )
 
 def upload_360_image(file_bytes: bytes, site_id: str, 
                      location_id: str, session_id: str) -> dict:

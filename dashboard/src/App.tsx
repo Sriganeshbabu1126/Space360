@@ -11,6 +11,8 @@ import CapturesPage from './pages/CapturesPage';
 import AIFeaturesPage from './pages/AIFeaturesPage';
 import ReportsPage from './pages/ReportsPage';
 import FloorPlansPage from './pages/FloorPlansPage';
+import ProjectMembersPage from './pages/ProjectMembersPage';
+import IssuesPage from './pages/IssuesPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -27,7 +29,9 @@ const AppRoutes = () => (
       <Route path="sites" element={<SitesPage />} />
       <Route path="floor-plans" element={<FloorPlansPage />} />
       <Route path="captures" element={<CapturesPage />} />
-      <Route path="compare" element={<ComparePage />} />
+      {/* <Route path="compare" element={<ComparePage />} /> */}
+      <Route path="issues" element={<IssuesPage />} />
+      <Route path="members" element={<ProjectMembersPage />} />
       <Route path="ai" element={<AIFeaturesPage />} />
       <Route path="reports" element={<ReportsPage />} />
     </Route>
