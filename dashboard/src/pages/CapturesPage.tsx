@@ -5,6 +5,7 @@ import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, d
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
+import CreateIssueModal from '../components/CreateIssueModal';
 
 const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -14,6 +15,8 @@ const CapturesPage: React.FC = () => {
   const [captures, setCaptures] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [selectedCaptureForIssue, setSelectedCaptureForIssue] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [filterSiteId, setFilterSiteId] = useState<string>('');
 
@@ -235,7 +238,19 @@ const CapturesPage: React.FC = () => {
                   <MapPin className="w-4 h-4 mr-1.5 opacity-70" />
                   <span className="truncate">{c.site_name || 'Site Capture'}</span>
                 </div>
-                <p className="text-xs font-semibold text-gray-400 mt-3">{new Date(c.captured_at).toLocaleDateString()}</p>
+                <div className="flex justify-between items-end mt-3">
+                  <p className="text-xs font-semibold text-gray-400">{new Date(c.captured_at).toLocaleDateString()}</p>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCaptureForIssue(c);
+                      setShowIssueModal(true);
+                    }}
+                    className="text-xs font-bold text-brand-600 hover:text-brand-700 border border-brand-200 hover:bg-brand-50 px-2 py-1 rounded transition-colors"
+                  >
+                    + Issue
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -312,6 +327,24 @@ const CapturesPage: React.FC = () => {
 
       {viewerUrl && (
         <Viewer360 imageUrl={viewerUrl} onClose={() => setViewerUrl(null)} />
+      )}
+
+      {showIssueModal && selectedCaptureForIssue && (
+        <CreateIssueModal
+          capture_url={selectedCaptureForIssue.thumbnail_url || selectedCaptureForIssue.image_url}
+          captured_at={selectedCaptureForIssue.captured_at}
+          location_label={selectedCaptureForIssue.location_label || selectedCaptureForIssue.location_point_id}
+          onClose={() => {
+            setShowIssueModal(false);
+            setSelectedCaptureForIssue(null);
+          }}
+          onSubmit={(data) => {
+            console.log("Create Issue form submitted:", data);
+            toast.success("Issue submitted (mock)");
+            setShowIssueModal(false);
+            setSelectedCaptureForIssue(null);
+          }}
+        />
       )}
     </div>
   );
