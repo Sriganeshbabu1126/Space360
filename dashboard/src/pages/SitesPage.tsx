@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { getSites, createSite } from '../services/api';
 import { MapPin, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const SitesPage: React.FC = () => {
+  const { isAdmin } = useAuth();
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,13 +49,17 @@ const SitesPage: React.FC = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">All Construction Sites</h2>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="btn-primary flex items-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Site
-        </button>
+        {isAdmin ? (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="btn-primary flex items-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Site
+          </button>
+        ) : (
+          <span className="text-sm text-gray-500 font-medium">Only admins can create sites.</span>
+        )}
       </div>
 
       {loading ? (
@@ -64,8 +70,10 @@ const SitesPage: React.FC = () => {
         </div>
       ) : sites.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-500 mb-4">No sites found. Create your first site to get started.</p>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary">Create Site</button>
+          <p className="text-gray-500 mb-4">No sites found.</p>
+          {isAdmin && (
+            <button onClick={() => setIsModalOpen(true)} className="btn-primary">Create Site</button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

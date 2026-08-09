@@ -15,6 +15,7 @@ const CapturesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [filterSiteId, setFilterSiteId] = useState<string>('');
 
   // Modal states
   const [sites, setSites] = useState<any[]>([]);
@@ -27,13 +28,14 @@ const CapturesPage: React.FC = () => {
   
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
+  const [capturedAt, setCapturedAt] = useState(() => new Date().toISOString().split('T')[0]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCaptures = async () => {
     setLoading(true);
     try {
-      const res = await getAllSessions();
+      const res = await getAllSessions(filterSiteId || undefined);
       let data = res.data;
       
       if (locationParam) {
@@ -55,19 +57,22 @@ const CapturesPage: React.FC = () => {
   useEffect(() => {
     document.title = "Captures | Space360";
     fetchCaptures();
+  }, [filterSiteId]);
+
+  // Load sites once for both the filter and the modal
+  useEffect(() => {
+    getSites().then(res => {
+      console.log('Fetched sites:', res.data);
+      setSites(res.data);
+    }).catch(console.error);
   }, []);
 
-  const handleOpenModal = async () => {
+  console.log('Current sites state:', sites);
+
+  const handleOpenModal = () => {
     setShowModal(true);
-    try {
-      const res = await getSites();
-      setSites(res.data);
-      if (res.data.length > 0) {
-        setSelectedSiteId(res.data[0].id);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to load sites');
+    if (sites.length > 0 && !selectedSiteId) {
+      setSelectedSiteId(sites[0].id);
     }
   };
 
@@ -115,11 +120,12 @@ const CapturesPage: React.FC = () => {
     }
     setUploading(true);
     try {
-      await uploadSession(selectedLocationId, file, notes);
+      await uploadSession(selectedLocationId, file, notes, capturedAt);
       toast.success('Capture uploaded!');
       setShowModal(false);
       setFile(null);
       setNotes('');
+      setCapturedAt(new Date().toISOString().split('T')[0]);
       fetchCaptures();
     } catch (err) {
       console.error(err);
@@ -167,7 +173,14 @@ const CapturesPage: React.FC = () => {
           <Filter className="w-5 h-5 mr-2" />
           <span className="font-medium">Filter By:</span>
         </div>
-        <select className="input max-w-xs flex-1 min-w-[150px]"><option>All Sites</option></select>
+        <select 
+          className="input max-w-xs flex-1 min-w-[150px]"
+          value={filterSiteId}
+          onChange={e => setFilterSiteId(e.target.value)}
+        >
+          <option value="">All Sites</option>
+          {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
         <select className="input max-w-xs flex-1 min-w-[150px]"><option>All Dates</option></select>
         <select className="input max-w-xs flex-1 min-w-[150px]"><option>Any AI Status</option></select>
       </div>
@@ -197,7 +210,7 @@ const CapturesPage: React.FC = () => {
               <div className="p-5">
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="font-bold text-gray-900 truncate pr-2 text-lg">
-                    {c.location_label || c.location_point_id.slice(0,8)}
+                    {c.location_label || c.location_point_id?.slice(0,8) || 'Unknown'}
                   </h3>
                   <div className="flex items-center gap-2">
                     {isAdmin && (
@@ -276,6 +289,10 @@ const CapturesPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capture Date</label>
+                <input type="date" className="input w-full" value={capturedAt} onChange={e => setCapturedAt(e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>

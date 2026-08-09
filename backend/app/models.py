@@ -24,6 +24,19 @@ class SeverityEnum(str, enum.Enum):
     warning = "warning"
     critical = "critical"
 
+class AccessLevelEnum(str, enum.Enum):
+    view_only = "view_only"
+    comment_and_change_status = "comment_and_change_status"
+    create_issue = "create_issue"
+    close_and_review = "close_and_review"
+
+class IssueStatusEnum(str, enum.Enum):
+    open = "open"
+    in_review = "in_review"
+    pending = "pending"
+    closed = "closed"
+    critical = "critical"
+
 
 class Site(Base):
     __tablename__ = "sites"
@@ -148,3 +161,64 @@ class Annotation(Base):
 
     session = relationship("CaptureSession", 
                            back_populates="annotations")
+
+
+class Contractor(Base):
+    __tablename__ = "contractors"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    company = Column(String)
+    trade = Column(String)
+    designation = Column(String)
+    contact = Column(String)
+    access_level = Column(Enum(AccessLevelEnum), default=AccessLevelEnum.view_only)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assignments = relationship("IssueAssignment", back_populates="contractor", cascade="all, delete-orphan")
+
+
+class Issue(Base):
+    __tablename__ = "issues"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    status = Column(Enum(IssueStatusEnum), default=IssueStatusEnum.open)
+    location_id = Column(String, ForeignKey("location_points.id"), nullable=False)
+    session_a_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    session_b_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    location = relationship("LocationPoint")
+    session_a = relationship("CaptureSession", foreign_keys=[session_a_id])
+    session_b = relationship("CaptureSession", foreign_keys=[session_b_id])
+    assignments = relationship("IssueAssignment", back_populates="issue", cascade="all, delete-orphan")
+    comments = relationship("IssueComment", back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at")
+
+
+class IssueAssignment(Base):
+    __tablename__ = "issue_assignments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    contractor_id = Column(String, ForeignKey("contractors.id"), nullable=False)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="assignments")
+    contractor = relationship("Contractor", back_populates="assignments")
+
+class IssueComment(Base):
+    __tablename__ = "issue_comments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    author = Column(String, nullable=False)
+    comment_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="comments")

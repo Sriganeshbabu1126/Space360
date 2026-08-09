@@ -1,1 +1,6 @@
 firebase-service-account.json
+backend/gcp-credentials.json
+
+.env
+gcp-credentials.json
+*.db
