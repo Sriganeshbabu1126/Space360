@@ -26,6 +26,7 @@ def create_issue(
         id=generate_uuid(),
         title=payload.title,
         description=payload.description,
+        issue_type=payload.issue_type,
         location_id=payload.location_id,
         session_a_id=payload.session_a_id,
         session_b_id=payload.session_b_id,
@@ -109,6 +110,15 @@ def update_issue(
             raise HTTPException(
                 status_code=403, 
                 detail="You do not have permission to change the status of this issue."
+            )
+            
+    # Check authorization for issue_type change
+    if payload.issue_type and payload.issue_type != issue.issue_type:
+        is_admin = user_email == "wincadsg@gmail.com"
+        if not is_admin:
+            raise HTTPException(
+                status_code=403, 
+                detail="Only admins can change the issue type"
             )
             
     # Update fields
