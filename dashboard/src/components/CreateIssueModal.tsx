@@ -28,6 +28,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [issueType, setIssueType] = useState('defect');
   const [initialComment, setInitialComment] = useState('');
   
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -66,6 +67,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
     onSubmit({
       title,
       description,
+      issue_type: issueType,
       initial_comment: initialComment,
       contractor_ids: selectedContractors
     });
@@ -162,6 +164,23 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                   placeholder="Provide additional details about the issue..."
                   className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Issue Type
+                </label>
+                <select
+                  value={issueType}
+                  onChange={(e) => setIssueType(e.target.value)}
+                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow bg-white"
+                >
+                  <option value="defect">Defect</option>
+                  <option value="safety_issue">Safety Issue</option>
+                  <option value="quality_issue">Quality Issue</option>
+                  <option value="incomplete_work">Incomplete Work</option>
+                  <option value="rework_required">Rework Required</option>
+                </select>
               </div>
 
               <div>

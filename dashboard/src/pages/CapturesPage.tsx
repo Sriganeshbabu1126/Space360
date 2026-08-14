@@ -343,6 +343,7 @@ const CapturesPage: React.FC = () => {
               const payload = {
                 title: data.title,
                 description: data.description,
+                issue_type: data.issue_type,
                 location_id: selectedCaptureForIssue.location_point_id,
                 session_a_id: selectedCaptureForIssue.id,
                 contractor_ids: data.contractor_ids
