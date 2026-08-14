@@ -37,6 +37,12 @@ class IssueStatusEnum(str, enum.Enum):
     closed = "closed"
     critical = "critical"
 
+class IssueTypeEnum(str, enum.Enum):
+    defect = "defect"
+    safety_issue = "safety_issue"
+    quality_issue = "quality_issue"
+    incomplete_work = "incomplete_work"
+    rework_required = "rework_required"
 
 class Site(Base):
     __tablename__ = "sites"
@@ -186,6 +192,7 @@ class Issue(Base):
     title = Column(String, nullable=False)
     description = Column(Text)
     status = Column(Enum(IssueStatusEnum), default=IssueStatusEnum.open)
+    issue_type = Column(Enum(IssueTypeEnum), default=IssueTypeEnum.defect)
     location_id = Column(String, ForeignKey("location_points.id"), nullable=False)
     session_a_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
     session_b_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)

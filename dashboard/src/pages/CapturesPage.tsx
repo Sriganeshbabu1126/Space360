@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession } from '../services/api';
+import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
@@ -338,11 +338,26 @@ const CapturesPage: React.FC = () => {
             setShowIssueModal(false);
             setSelectedCaptureForIssue(null);
           }}
-          onSubmit={(data) => {
-            console.log("Create Issue form submitted:", data);
-            toast.success("Issue submitted (mock)");
-            setShowIssueModal(false);
-            setSelectedCaptureForIssue(null);
+          onSubmit={async (data) => {
+            try {
+              const payload = {
+                title: data.title,
+                description: data.description,
+                location_id: selectedCaptureForIssue.location_point_id,
+                session_a_id: selectedCaptureForIssue.id,
+                contractor_ids: data.contractor_ids
+              };
+              const res = await createIssue(payload);
+              if (data.initial_comment) {
+                await addIssueComment(res.data.id, data.initial_comment);
+              }
+              toast.success("Issue created successfully");
+              setShowIssueModal(false);
+              setSelectedCaptureForIssue(null);
+            } catch (err) {
+              console.error(err);
+              toast.error("Failed to create issue");
+            }
           }}
         />
       )}

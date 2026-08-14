@@ -31,6 +31,13 @@ class IssueStatusEnum(str, Enum):
     closed = "closed"
     critical = "critical"
 
+class IssueTypeEnum(str, Enum):
+    defect = "defect"
+    safety_issue = "safety_issue"
+    quality_issue = "quality_issue"
+    incomplete_work = "incomplete_work"
+    rework_required = "rework_required"
+
 # --- Site Schemas ---
 class SiteCreate(BaseModel):
     name: str
@@ -212,6 +219,7 @@ class IssueCommentResponse(BaseModel):
 class IssueCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    issue_type: Optional[IssueTypeEnum] = IssueTypeEnum.defect
     location_id: str
     session_a_id: Optional[str] = None
     session_b_id: Optional[str] = None
@@ -221,12 +229,14 @@ class IssueUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[IssueStatusEnum] = None
+    issue_type: Optional[IssueTypeEnum] = None
 
 class IssueResponse(BaseModel):
     id: str
     title: str
     description: Optional[str]
     status: IssueStatusEnum
+    issue_type: IssueTypeEnum
     location_id: str
     session_a_id: Optional[str]
     session_b_id: Optional[str]
