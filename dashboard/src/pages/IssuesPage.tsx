@@ -36,6 +36,7 @@ interface Issue {
   title: string;
   description: string;
   status: string;
+  issue_type: string;
   location_id: string;
   session_a_id: string;
   session_b_id: string;
@@ -47,7 +48,17 @@ interface Issue {
 const statusConfig: Record<string, { label: string, color: string, icon: React.FC<any> }> = {
   open: { label: 'Open', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Circle },
   in_review: { label: 'In Review', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: Clock },
+  pending: { label: 'Pending', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: Clock },
+  critical: { label: 'Critical', color: 'bg-red-100 text-red-800 border-red-200', icon: AlertCircle },
   closed: { label: 'Closed', color: 'bg-gray-100 text-gray-800 border-gray-200', icon: CheckCircle2 },
+};
+
+const issueTypeLabels: Record<string, string> = {
+  defect: 'Defect',
+  safety_issue: 'Safety Issue',
+  quality_issue: 'Quality Issue',
+  incomplete_work: 'Incomplete Work',
+  rework_required: 'Rework Required'
 };
 
 const IssuesPage: React.FC = () => {
@@ -59,6 +70,7 @@ const IssuesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -103,13 +115,19 @@ const IssuesPage: React.FC = () => {
   };
 
   const filteredIssues = useMemo(() => {
-    if (!searchTerm) return issues;
-    const lower = searchTerm.toLowerCase();
-    return issues.filter(i => 
-      i.title.toLowerCase().includes(lower) || 
-      (i.description && i.description.toLowerCase().includes(lower))
-    );
-  }, [issues, searchTerm]);
+    let result = issues;
+    if (filterType) {
+      result = result.filter(i => i.issue_type === filterType);
+    }
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(i => 
+        i.title.toLowerCase().includes(lower) || 
+        (i.description && i.description.toLowerCase().includes(lower))
+      );
+    }
+    return result;
+  }, [issues, searchTerm, filterType]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -136,6 +154,20 @@ const IssuesPage: React.FC = () => {
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.detail || 'Failed to update status. Check permissions.');
+    }
+  };
+
+  const handleTypeChange = async (issueId: string, newType: string) => {
+    try {
+      await updateIssue(issueId, { issue_type: newType });
+      toast.success('Issue type updated');
+      fetchData();
+      if (selectedIssue && selectedIssue.id === issueId) {
+        setSelectedIssue({ ...selectedIssue, issue_type: newType });
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.detail || 'Failed to update issue type.');
     }
   };
 
@@ -189,43 +221,67 @@ const IssuesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200 shrink-0">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-          <AlertCircle className="w-6 h-6 mr-3 text-brand-600" />
-          Issues
-        </h2>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 shrink-0 space-y-4">
+        {/* Row 1: Header & Primary Action */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+            <AlertCircle className="w-6 h-6 mr-3 text-brand-600" />
+            Issues
+          </h2>
+          <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Create Issue
+          </button>
+        </div>
         
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <div className="flex items-center text-gray-500 mr-1">
-            <Filter className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">Status:</span>
-          </div>
-          <select 
-            value={filterStatus} 
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="input py-1.5 text-sm"
-          >
-            <option value="">All</option>
-            <option value="open">Open</option>
-            <option value="in_review">In Review</option>
-            <option value="closed">Closed</option>
-          </select>
-
-          <div className="relative flex-1 sm:w-64 min-w-[200px]">
+        {/* Row 2: Search & Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1 w-full sm:w-auto">
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
               placeholder="Search issues..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             />
           </div>
           
-          <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-1.5 px-4 text-sm whitespace-nowrap shadow-sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create Issue
-          </button>
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-500 flex items-center">
+                <Filter className="w-4 h-4 mr-1" /> Status:
+              </span>
+              <select 
+                value={filterStatus} 
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="input py-1.5 text-sm w-full sm:w-32"
+              >
+                <option value="">All</option>
+                <option value="open">Open</option>
+                <option value="in_review">In Review</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-500">Type:</span>
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)}
+                className="input py-1.5 text-sm w-full sm:w-40"
+              >
+                <option value="">All</option>
+                <option value="defect">Defect</option>
+                <option value="safety_issue">Safety Issue</option>
+                <option value="quality_issue">Quality Issue</option>
+                <option value="incomplete_work">Incomplete Work</option>
+                <option value="rework_required">Rework Required</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -244,6 +300,7 @@ const IssuesPage: React.FC = () => {
               <thead className="sticky top-0 bg-gray-50 z-10">
                 <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider">
                   <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Type</th>
                   <th className="px-6 py-4 font-semibold">Title</th>
                   <th className="px-6 py-4 font-semibold">Location / Description</th>
                   <th className="px-6 py-4 font-semibold">Assigned To</th>
@@ -265,6 +322,11 @@ const IssuesPage: React.FC = () => {
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${conf.color}`}>
                           <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
                           {conf.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wider">
+                          {issueTypeLabels[issue.issue_type] || issue.issue_type || 'Defect'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -401,7 +463,26 @@ const IssuesPage: React.FC = () => {
                   >
                     <option value="open">Open</option>
                     <option value="in_review">In Review</option>
+                    {isAdmin && <option value="pending">Pending</option>}
+                    {isAdmin && <option value="critical">Critical</option>}
                     {isAdmin && <option value="closed">Closed</option>}
+                  </select>
+                </div>
+
+                {/* Issue Type Change */}
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">Issue Type</h4>
+                  <select 
+                    value={selectedIssue.issue_type || 'defect'} 
+                    onChange={(e) => handleTypeChange(selectedIssue.id, e.target.value)}
+                    disabled={!isAdmin}
+                    className="input py-1.5 text-sm w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="defect">Defect</option>
+                    <option value="safety_issue">Safety Issue</option>
+                    <option value="quality_issue">Quality Issue</option>
+                    <option value="incomplete_work">Incomplete Work</option>
+                    <option value="rework_required">Rework Required</option>
                   </select>
                 </div>
 
