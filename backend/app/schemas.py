@@ -214,6 +214,17 @@ class IssueCommentResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- Issue Photo Schemas ---
+class IssuePhotoResponse(BaseModel):
+    id: str
+    issue_id: str
+    photo_url: str
+    uploaded_by: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 # --- Issue Schemas ---
 class IssueCreate(BaseModel):
@@ -238,12 +249,14 @@ class IssueResponse(BaseModel):
     status: IssueStatusEnum
     issue_type: IssueTypeEnum
     location_id: str
+    location_name: Optional[str] = None
     session_a_id: Optional[str]
     session_b_id: Optional[str]
     created_by: str
     created_at: datetime
     updated_at: datetime
     assignments: List[IssueAssignmentResponse] = []
+    photos: List[IssuePhotoResponse] = []
 
     class Config:
         from_attributes = True

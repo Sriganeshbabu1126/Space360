@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment } from '../services/api';
+import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment, uploadIssuePhoto } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
@@ -11,6 +11,7 @@ const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const locationParam = searchParams.get('location_id');
+  const highlightParam = searchParams.get('highlight');
   
   const [captures, setCaptures] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -19,6 +20,7 @@ const CapturesPage: React.FC = () => {
   const [selectedCaptureForIssue, setSelectedCaptureForIssue] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [filterSiteId, setFilterSiteId] = useState<string>('');
+  const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
 
   // Modal states
   const [sites, setSites] = useState<any[]>([]);
@@ -43,12 +45,25 @@ const CapturesPage: React.FC = () => {
       
       if (locationParam) {
         data = data.filter((c: any) => c.location_point_id === locationParam);
-        if (data.length > 0) {
-          setViewerUrl(data[0].image_url);
-        }
       }
       
       setCaptures(data);
+
+      if (highlightParam) {
+        setHighlightedCapture(highlightParam);
+        const capture = data.find((c: any) => c.id === highlightParam);
+        if (capture) {
+          setViewerUrl(capture.image_url);
+          setTimeout(() => {
+            const el = document.getElementById(`capture-${highlightParam}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 500);
+        }
+      } else if (locationParam && data.length > 0) {
+        setViewerUrl(data[0].image_url);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load captures');
@@ -197,7 +212,7 @@ const CapturesPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {captures.map(c => (
-            <div key={c.id} className="card p-0 overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 group hover:-translate-y-1">
+            <div id={`capture-${c.id}`} key={c.id} className={`card p-0 overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 group hover:-translate-y-1 ${highlightedCapture === c.id ? 'ring-4 ring-brand-500 shadow-xl' : ''}`}>
               <div className="h-48 relative overflow-hidden bg-gray-200">
                 {c.thumbnail_url || c.image_url ? (
                   <img src={c.thumbnail_url || c.image_url} alt="thumbnail" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out" />
@@ -331,9 +346,13 @@ const CapturesPage: React.FC = () => {
 
       {showIssueModal && selectedCaptureForIssue && (
         <CreateIssueModal
-          capture_url={selectedCaptureForIssue.thumbnail_url || selectedCaptureForIssue.image_url}
-          captured_at={selectedCaptureForIssue.captured_at}
-          location_label={selectedCaptureForIssue.location_label || selectedCaptureForIssue.location_point_id}
+          captureData={{
+            id: selectedCaptureForIssue.id,
+            image_url: selectedCaptureForIssue.image_url,
+            captured_at: selectedCaptureForIssue.captured_at,
+            location_name: selectedCaptureForIssue.location_label || selectedCaptureForIssue.location_point_id
+          }}
+          captureId={selectedCaptureForIssue.id}
           onClose={() => {
             setShowIssueModal(false);
             setSelectedCaptureForIssue(null);
@@ -349,9 +368,40 @@ const CapturesPage: React.FC = () => {
                 contractor_ids: data.contractor_ids
               };
               const res = await createIssue(payload);
+              const issueId = res.data.id;
+              
               if (data.initial_comment) {
-                await addIssueComment(res.data.id, data.initial_comment);
+                await addIssueComment(issueId, data.initial_comment);
               }
+
+              // Upload marked-up image as special issue photo
+              if (data.markup_image_url) {
+                try {
+                  const blob = await fetch(data.markup_image_url).then(r => r.blob());
+                  const file = new File([blob], 'markup-annotation.png', { type: 'image/png' });
+                  await uploadIssuePhoto(issueId, file);
+                } catch (error) {
+                  console.error('Failed to save markup', error);
+                  toast.error('Failed to save markup photo');
+                }
+              }
+
+              // Upload photos if any
+              if (data.selected_photos && data.selected_photos.length > 0) {
+                // Sequential upload to avoid rate limiting
+                for (let i = 0; i < data.selected_photos.length; i++) {
+                  const photo = data.selected_photos[i];
+                  try {
+                    await uploadIssuePhoto(issueId, photo);
+                    // Add a small delay between uploads to be safe with quotas
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  } catch (photoErr) {
+                    console.error(`Failed to upload ${photo.name}`, photoErr);
+                    toast.error(`Failed to upload photo: ${photo.name}`);
+                  }
+                }
+              }
+
               toast.success("Issue created successfully");
               setShowIssueModal(false);
               setSelectedCaptureForIssue(null);
