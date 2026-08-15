@@ -205,6 +205,15 @@ class Issue(Base):
     session_b = relationship("CaptureSession", foreign_keys=[session_b_id])
     assignments = relationship("IssueAssignment", back_populates="issue", cascade="all, delete-orphan")
     comments = relationship("IssueComment", back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at")
+    photos = relationship("IssuePhoto", back_populates="issue", cascade="all, delete-orphan", order_by="IssuePhoto.created_at")
+
+    @property
+    def location_name(self):
+        if self.location and self.location.floor_plan:
+            return f"{self.location.floor_plan.label} - {self.location.label}"
+        elif self.location:
+            return self.location.label
+        return "Unknown Location"
 
 
 class IssueAssignment(Base):
@@ -229,3 +238,14 @@ class IssueComment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     issue = relationship("Issue", back_populates="comments")
+
+class IssuePhoto(Base):
+    __tablename__ = "issue_photos"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    photo_url = Column(String, nullable=False)
+    uploaded_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="photos")

@@ -117,3 +117,8 @@ export const assignContractorToIssue = (id: string, contractorId: string) => api
 export const unassignContractorFromIssue = (id: string, contractorId: string) => api.delete(`/issues/${id}/assignments/${contractorId}`);
 export const getIssueComments = (id: string) => api.get(`/issues/${id}/comments`);
 export const addIssueComment = (id: string, comment_text: string) => api.post(`/issues/${id}/comments`, { comment_text });
+export const uploadIssuePhoto = (id: string, file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post(`/issues/${id}/photos`, form);
+};

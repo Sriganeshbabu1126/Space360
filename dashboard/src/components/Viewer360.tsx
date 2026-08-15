@@ -1,16 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { X } from 'lucide-react';
-
-interface Viewer360Props {
-  imageUrl: string;
-  onClose?: () => void;
-  id?: string;
-  height?: string;
-  onViewChange?: (pitch: number, yaw: number, hfov: number) => void;
-  syncPitch?: number;
-  syncYaw?: number;
-  syncHfov?: number;
-}
 
 declare global {
   interface Window {
@@ -18,18 +7,95 @@ declare global {
   }
 }
 
-const Viewer360: React.FC<Viewer360Props> = ({ 
-  imageUrl, 
-  onClose,
-  id,
-  height,
+interface Viewer360Props {
+  imageUrl: string;
+  onViewChange?: (pitch: number, yaw: number, hfov: number) => void;
+  syncPitch?: number;
+  syncYaw?: number;
+  syncHfov?: number;
+  onClose?: () => void;
+  height?: string | number;
+  id?: string;
+}
+
+export interface Viewer360Handle {
+  captureSnapshot: () => Promise<string | null>;
+}
+
+const Viewer360 = forwardRef<Viewer360Handle, Viewer360Props>(({
+  imageUrl,
   onViewChange,
   syncPitch,
   syncYaw,
-  syncHfov
-}) => {
+  syncHfov,
+  onClose,
+  height,
+  id
+}, ref) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const pannellumInstance = useRef<any>(null);
+
+  useImperativeHandle(ref, () => ({
+    captureSnapshot: () => {
+      return new Promise((resolve) => {
+        if (!pannellumInstance.current || !viewerRef.current) {
+          resolve(null);
+          return;
+        }
+        
+        try {
+          const canvas = viewerRef.current.querySelector('canvas') as HTMLCanvasElement;
+          if (!canvas) {
+            resolve(null);
+            return;
+          }
+          
+          if (typeof pannellumInstance.current.getRenderer === 'function') {
+            const renderer = pannellumInstance.current.getRenderer();
+            if (renderer) {
+              try {
+                // In pannellum, renderer.render takes (pitch, yaw, hfov, params) in RADIANS!
+                // getPitch/getYaw/getHfov return DEGREES!
+                const toRad = Math.PI / 180;
+                renderer.render(
+                  pannellumInstance.current.getPitch() * toRad,
+                  pannellumInstance.current.getYaw() * toRad,
+                  pannellumInstance.current.getHfov() * toRad,
+                  { "returnImage": false }
+                );
+                
+                const dataUrl = canvas.toDataURL('image/png');
+                resolve(dataUrl);
+                return;
+              } catch (e) {
+                console.error("Renderer sync draw failed, falling back to rAF", e);
+              }
+            }
+          }
+          
+          // Fallback: Force a redraw by slightly adjusting pitch
+          const p = pannellumInstance.current.getPitch();
+          pannellumInstance.current.setPitch(p + 0.0001);
+          pannellumInstance.current.setPitch(p);
+          
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              try {
+                const dataUrl = canvas.toDataURL('image/png');
+                resolve(dataUrl);
+              } catch (e) {
+                console.error(e);
+                resolve(null);
+              }
+            });
+          });
+        } catch (error) {
+          console.error("Failed to capture Viewer360 snapshot:", error);
+          resolve(null);
+        }
+      });
+    }
+  }));
 
   useEffect(() => {
     if (viewerRef.current && window.pannellum) {
@@ -60,10 +126,14 @@ const Viewer360: React.FC<Viewer360Props> = ({
 
     return () => {
       if (pannellumInstance.current) {
-        pannellumInstance.current.destroy();
+        try {
+          pannellumInstance.current.destroy();
+        } catch (e) {
+          console.error("Error destroying pannellum instance", e);
+        }
       }
     };
-  }, [imageUrl]); // Intentionally only depend on imageUrl to avoid re-mounting
+  }, [imageUrl]);
 
   useEffect(() => {
     if (pannellumInstance.current) {
@@ -91,6 +161,6 @@ const Viewer360: React.FC<Viewer360Props> = ({
       <div ref={viewerRef} className="w-full" style={{ height: height || '100%' }}></div>
     </div>
   );
-};
+});
 
 export default Viewer360;

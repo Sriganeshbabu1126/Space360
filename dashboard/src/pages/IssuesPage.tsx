@@ -2,15 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   AlertCircle, Plus, Search, Filter, Trash2, X, 
-  MapPin, CheckCircle2, Circle, Clock, MessageSquare, Users, Send
+  MapPin, CheckCircle2, Circle, Clock, MessageSquare, Users, Send, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
   getIssues, deleteIssue, updateIssue, getContractors, 
   assignContractorToIssue, unassignContractorFromIssue,
-  getIssueComments, addIssueComment
+  getIssueComments, addIssueComment, getIssue
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import PhotoGallery, { IssuePhoto } from '../components/PhotoGallery';
 
 interface Contractor {
   id: string;
@@ -38,11 +39,13 @@ interface Issue {
   status: string;
   issue_type: string;
   location_id: string;
+  location_name?: string;
   session_a_id: string;
   session_b_id: string;
   created_by: string;
   created_at: string;
   assignments: IssueAssignment[];
+  photos?: IssuePhoto[];
 }
 
 const statusConfig: Record<string, { label: string, color: string, icon: React.FC<any> }> = {
@@ -71,6 +74,7 @@ const IssuesPage: React.FC = () => {
   
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('');
+  const [filterLocation, setFilterLocation] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -108,16 +112,37 @@ const IssuesPage: React.FC = () => {
     }
   };
 
-  const handleRowClick = (issue: Issue) => {
+  const handleRowClick = async (issue: Issue) => {
     setSelectedIssue(issue);
     setComments([]);
     loadComments(issue.id);
+    try {
+      const res = await getIssue(issue.id);
+      setSelectedIssue(res.data);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load full issue details');
+    }
   };
+
+  // Extract unique locations from issues for the filter dropdown
+  const uniqueLocations = useMemo(() => {
+    const locs = issues
+      .filter(i => i.location_id && i.location_name)
+      .map(i => ({ id: i.location_id, name: i.location_name as string }));
+    
+    // Deduplicate by id
+    const unique = Array.from(new Map(locs.map(l => [l.id, l])).values());
+    return unique.sort((a, b) => a.name.localeCompare(b.name));
+  }, [issues]);
 
   const filteredIssues = useMemo(() => {
     let result = issues;
     if (filterType) {
       result = result.filter(i => i.issue_type === filterType);
+    }
+    if (filterLocation) {
+      result = result.filter(i => i.location_id === filterLocation);
     }
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -127,7 +152,7 @@ const IssuesPage: React.FC = () => {
       );
     }
     return result;
-  }, [issues, searchTerm, filterType]);
+  }, [issues, searchTerm, filterType, filterLocation]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -177,12 +202,8 @@ const IssuesPage: React.FC = () => {
       await assignContractorToIssue(selectedIssue.id, contractorId);
       toast.success('Contractor assigned');
       fetchData();
-      // Optimistic update for modal
-      const contractor = contractors.find(c => c.id === contractorId);
-      if (contractor) {
-        const newAssignment = { id: 'temp', contractor_id: contractorId, contractor };
-        setSelectedIssue({ ...selectedIssue, assignments: [...selectedIssue.assignments, newAssignment] });
-      }
+      const res = await getIssue(selectedIssue.id);
+      setSelectedIssue(res.data);
     } catch (error) {
       console.error(error);
       toast.error('Failed to assign contractor');
@@ -267,6 +288,20 @@ const IssuesPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-500">Location:</span>
+              <select 
+                value={filterLocation} 
+                onChange={(e) => setFilterLocation(e.target.value)}
+                className="input py-1.5 text-sm w-full sm:w-40"
+              >
+                <option value="">All Locations</option>
+                {uniqueLocations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-500">Type:</span>
               <select 
                 value={filterType} 
@@ -336,7 +371,7 @@ const IssuesPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center text-sm text-gray-700 font-medium mb-1">
                           <MapPin className="w-3.5 h-3.5 mr-1 text-gray-400" /> 
-                          {issue.location_id.slice(0,8)}...
+                          {issue.location_name || 'No location'}
                         </div>
                         <div className="text-sm text-gray-500 truncate max-w-[250px]">
                           {issue.description || 'No description provided.'}
@@ -391,12 +426,29 @@ const IssuesPage: React.FC = () => {
                     {statusConfig[selectedIssue.status]?.label || 'Open'}
                   </span>
                   <span className="text-gray-400">|</span>
-                  <span className="text-gray-600 flex items-center">
-                    <MapPin className="w-4 h-4 mr-1" /> Loc: {selectedIssue.location_id.slice(0,8)}
+                  <span className="text-gray-600 flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-medium">{selectedIssue.location_name || 'No location'}</span>
                   </span>
                   <span className="text-gray-400">|</span>
                   <span className="text-gray-500">{new Date(selectedIssue.created_at).toLocaleDateString()}</span>
                 </div>
+                
+                {selectedIssue.session_a_id && (
+                  <div className="mt-5">
+                    <button
+                      onClick={() => {
+                        const captureId = selectedIssue.session_a_id;
+                        setSelectedIssue(null);
+                        navigate(`/captures?highlight=${captureId}`);
+                      }}
+                      className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors shadow-sm flex items-center"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View 360° Capture
+                    </button>
+                  </div>
+                )}
               </div>
               <button onClick={() => setSelectedIssue(null)} className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 p-2 rounded-xl transition-colors">
                 <X className="w-5 h-5" />
@@ -418,16 +470,38 @@ const IssuesPage: React.FC = () => {
 
                 {/* Comments Section */}
                 <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Comments & Activity</h4>
-                  <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Comments & Activity</h4>
+                    {comments.length > 0 && (
+                      <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                        {comments.length} Comment{comments.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4 mb-4 max-h-80 overflow-y-auto pr-2">
                     {comments.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">No comments yet. Be the first to add one!</p>
+                      <div className="text-center py-6 text-gray-500">
+                        <p className="text-sm">No comments yet. Add the first one!</p>
+                      </div>
                     ) : (
-                      comments.map(c => (
-                        <div key={c.id} className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-sm text-gray-900">{c.author.split('@')[0]}</span>
-                            <span className="text-xs text-gray-400">{new Date(c.created_at).toLocaleString()}</span>
+                      [...comments].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(c => (
+                        <div key={c.id} className="border-l-2 border-brand-300 pl-4 pb-2">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs shrink-0">
+                              {c.author.substring(0, 1).toUpperCase()}
+                            </div>
+                            <span className="font-medium text-sm text-gray-900">
+                              {c.author.split('@')[0]}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(c.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
                           </div>
                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.comment_text}</p>
                         </div>
@@ -447,6 +521,15 @@ const IssuesPage: React.FC = () => {
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+
+                {/* Evidence Photos Section */}
+                <div className="pt-6 mt-6 border-t border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Evidence Photos</h4>
+                  <PhotoGallery 
+                    photos={selectedIssue.photos || []} 
+                    issueTitle={selectedIssue.title || 'Issue'} 
+                  />
                 </div>
               </div>
 

@@ -2,11 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.models import Issue, IssueAssignment, Contractor, AccessLevelEnum, IssueComment, IssueStatusEnum
-from app.schemas import IssueCreate, IssueUpdate, IssueResponse, IssueAssignmentResponse, IssueCommentCreate, IssueCommentResponse
+from sqlalchemy.orm import joinedload
+from app.models import Issue, IssueAssignment, Contractor, AccessLevelEnum, IssueComment, IssueStatusEnum, LocationPoint
+from app.schemas import IssueCreate, IssueUpdate, IssueResponse, IssueAssignmentResponse, IssueCommentCreate, IssueCommentResponse, IssuePhotoResponse
 from app.auth import get_current_user
 from pydantic import BaseModel
 import uuid
+import datetime
+from fastapi import UploadFile, File
+from app.models import IssuePhoto
+from app.services.gcs_service import upload_private_file, get_signed_url
 
 router = APIRouter()
 
@@ -57,7 +62,9 @@ def list_issues(
     location_id: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Issue)
+    query = db.query(Issue).options(
+        joinedload(Issue.location).joinedload(LocationPoint.floor_plan)
+    )
     if status:
         query = query.filter(Issue.status == status)
     if location_id:
@@ -67,10 +74,74 @@ def list_issues(
 
 @router.get("/{id}", response_model=IssueResponse)
 def get_issue(id: str, db: Session = Depends(get_db)):
+    issue = db.query(Issue).options(
+        joinedload(Issue.location).joinedload(LocationPoint.floor_plan)
+    ).filter(Issue.id == id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    
+    # Generate signed URLs for photos
+    for photo in issue.photos:
+        try:
+            # Assuming photo_url stores the GCS path directly, e.g., "issues/{id}/{filename}"
+            # If it's a full URL we need to parse it, but we'll store just the path
+            photo.photo_url = get_signed_url(photo.photo_url, expiration_hours=1)
+        except Exception as e:
+            print(f"Error generating signed URL for photo {photo.id}: {e}")
+            
+    return issue
+
+@router.post("/{id}/photos", response_model=IssuePhotoResponse, status_code=status.HTTP_201_CREATED)
+async def upload_issue_photo(
+    id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     issue = db.query(Issue).filter(Issue.id == id).first()
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found")
-    return issue
+
+    # Validate file type
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Only JPG and PNG files are allowed")
+
+    # Validate file size (max 5MB)
+    file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+
+    # Upload to GCS
+    try:
+        timestamp = int(datetime.datetime.now().timestamp())
+        filename = f"{timestamp}_{file.filename}"
+        destination_path = f"issues/{id}/{filename}"
+        
+        upload_private_file(file_bytes, destination_path, file.content_type)
+        
+        photo = IssuePhoto(
+            id=generate_uuid(),
+            issue_id=id,
+            photo_url=destination_path,
+            uploaded_by=current_user.get("email", "system")
+        )
+        db.add(photo)
+        db.commit()
+        db.refresh(photo)
+        
+        # Return with signed URL
+        photo_copy = IssuePhotoResponse(
+            id=photo.id,
+            issue_id=photo.issue_id,
+            photo_url=get_signed_url(destination_path, expiration_hours=1),
+            uploaded_by=photo.uploaded_by,
+            created_at=photo.created_at
+        )
+        return photo_copy
+    except Exception as e:
+        print(f"Failed to upload photo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload photo to storage")
+
 
 @router.put("/{id}", response_model=IssueResponse)
 def update_issue(
