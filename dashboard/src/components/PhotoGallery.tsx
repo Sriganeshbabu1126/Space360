@@ -54,7 +54,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ photos, issueTitle }) => {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {photos.map((photo, index) => (
           <div 
             key={photo.id} 
@@ -88,14 +88,14 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ photos, issueTitle }) => {
       {selectedIndex !== null && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center" onClick={handleClose}>
           <button 
-            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
+            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
             onClick={handleClose}
           >
             <X className="w-6 h-6" />
           </button>
 
           <div 
-            className="relative flex-1 w-full max-w-6xl flex items-center justify-center p-4 md:p-8"
+            className="relative flex-1 w-full max-w-6xl flex items-center justify-center p-0 md:p-8"
             onClick={e => e.stopPropagation()}
           >
             <img 
@@ -105,18 +105,18 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ photos, issueTitle }) => {
             />
 
             <button 
-              className="absolute left-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+              className="absolute left-2 md:left-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent min-h-[44px] min-w-[44px] flex items-center justify-center bg-black/20 md:bg-transparent"
               onClick={handlePrev}
               disabled={selectedIndex === 0}
             >
-              <ChevronLeft className="w-8 h-8" />
+              <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
             </button>
             <button 
-              className="absolute right-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+              className="absolute right-2 md:right-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent min-h-[44px] min-w-[44px] flex items-center justify-center bg-black/20 md:bg-transparent"
               onClick={handleNext}
               disabled={selectedIndex === photos.length - 1}
             >
-              <ChevronRight className="w-8 h-8" />
+              <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
             </button>
           </div>
 

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from sqlalchemy.orm import joinedload
-from app.models import Issue, IssueAssignment, Contractor, AccessLevelEnum, IssueComment, IssueStatusEnum, LocationPoint
-from app.schemas import IssueCreate, IssueUpdate, IssueResponse, IssueAssignmentResponse, IssueCommentCreate, IssueCommentResponse, IssuePhotoResponse
+from app.models import Issue, IssueAssignment, Contractor, AccessLevelEnum, IssueComment, IssueStatusEnum, LocationPoint, IssueNotification, FloorPlan
+from app.schemas import IssueCreate, IssueUpdate, IssueResponse, IssueAssignmentResponse, IssueCommentCreate, IssueCommentResponse, IssuePhotoResponse, IssueNotificationResponse
 from app.auth import get_current_user
 from pydantic import BaseModel
 import uuid
@@ -12,6 +12,7 @@ import datetime
 from fastapi import UploadFile, File
 from app.models import IssuePhoto
 from app.services.gcs_service import upload_private_file, get_signed_url
+from app.utils.email import send_issue_notification
 
 router = APIRouter()
 
@@ -60,11 +61,36 @@ def create_issue(
 def list_issues(
     status: Optional[str] = Query(None),
     location_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    site_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     query = db.query(Issue).options(
         joinedload(Issue.location).joinedload(LocationPoint.floor_plan)
     )
+    
+    user_email = current_user.get("email")
+    is_admin = user_email == "wincadsg@gmail.com"
+    
+    if not is_admin:
+        contractor = db.query(Contractor).filter(Contractor.contact == user_email).first()
+        if contractor:
+            assigned_site_ids = [assign.site_id for assign in contractor.site_assignments]
+            query = query.join(LocationPoint, Issue.location_id == LocationPoint.id) \
+                         .join(FloorPlan, LocationPoint.floor_plan_id == FloorPlan.id) \
+                         .filter(FloorPlan.site_id.in_(assigned_site_ids))
+        else:
+            return []
+            
+    if site_id and is_admin:
+        # If admin and specific site selected
+        query = query.join(LocationPoint, Issue.location_id == LocationPoint.id) \
+                     .join(FloorPlan, LocationPoint.floor_plan_id == FloorPlan.id) \
+                     .filter(FloorPlan.site_id == site_id)
+    elif site_id and not is_admin:
+        # User already joined FloorPlan above
+        query = query.filter(FloorPlan.site_id == site_id)
+            
     if status:
         query = query.filter(Issue.status == status)
     if location_id:
@@ -282,3 +308,72 @@ def add_issue_comment(
     db.commit()
     db.refresh(comment)
     return comment
+
+async def send_and_log_notification(c_email, c_name, i_id, i_title, i_desc, i_type, i_status, loc_name, rep_email, c_at):
+    success = await send_issue_notification(
+        contractor_email=c_email,
+        contractor_name=c_name,
+        issue_id=i_id,
+        issue_title=i_title,
+        issue_description=i_desc,
+        issue_type=i_type,
+        issue_status=i_status,
+        location_name=loc_name,
+        reporter_email=rep_email,
+        created_at=c_at
+    )
+    db_bg = SessionLocal()
+    try:
+        notif = IssueNotification(
+            id=generate_uuid(),
+            issue_id=i_id,
+            sent_to=c_email,
+            status="success" if success else "failed"
+        )
+        db_bg.add(notif)
+        db_bg.commit()
+    except Exception as e:
+        print(f"Error logging notification: {e}")
+    finally:
+        db_bg.close()
+
+@router.post("/{id}/send-notification", status_code=status.HTTP_202_ACCEPTED)
+async def trigger_issue_notification(
+    id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    issue = db.query(Issue).options(
+        joinedload(Issue.location).joinedload(LocationPoint.floor_plan),
+        joinedload(Issue.assignments).joinedload(IssueAssignment.contractor)
+    ).filter(Issue.id == id).first()
+    
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+        
+    if not issue.assignments:
+        return {"message": "No contractors assigned to this issue."}
+        
+    queued_count = 0
+    for assignment in issue.assignments:
+        contractor = assignment.contractor
+        if not contractor.contact or "@" not in contractor.contact:
+            continue
+            
+        background_tasks.add_task(
+            send_and_log_notification,
+            contractor.contact,
+            contractor.name,
+            issue.id,
+            issue.title,
+            issue.description or "",
+            issue.issue_type.value if hasattr(issue.issue_type, 'value') else str(issue.issue_type),
+            issue.status.value if hasattr(issue.status, 'value') else str(issue.status),
+            issue.location_name,
+            issue.created_by,
+            issue.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        )
+        queued_count += 1
+
+    return {"message": f"Notifications queued for {queued_count} contractors."}

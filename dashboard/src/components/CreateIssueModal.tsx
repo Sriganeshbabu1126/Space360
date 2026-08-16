@@ -197,22 +197,30 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
       )}
 
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm md:p-4 md:overflow-y-auto"
         style={{ display: (showClipCapture || showMarkupEditor) ? 'none' : 'flex' }}
       >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden animate-fade-in border border-gray-100 my-8">
+      <div className="bg-white w-full h-full md:h-auto md:rounded-2xl shadow-2xl md:max-w-4xl flex flex-col md:flex-row overflow-hidden animate-fade-in md:border md:border-gray-100 md:my-8 relative">
         
+        {/* Mobile Header with Close Button */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
+          <h2 className="text-lg font-bold text-gray-900">Create Issue</h2>
+          <button onClick={onClose} className="p-2 -mr-2 text-gray-400 hover:text-gray-600 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
         {/* Left Panel - Image & Context */}
-        <div className="w-full md:w-5/12 bg-gray-50 flex flex-col border-r border-gray-200">
-          <div className="p-5 border-b border-gray-200 bg-white">
+        <div className="w-full md:w-5/12 bg-gray-50 flex flex-col md:border-r border-b md:border-b-0 border-gray-200 shrink-0">
+          <div className="hidden md:flex p-5 border-b border-gray-200 bg-white items-center">
             <h3 className="font-bold text-gray-900 flex items-center text-lg">
               <ImageIcon className="w-5 h-5 mr-2 text-brand-600" />
               Capture Reference
             </h3>
           </div>
           
-          <div className="flex-1 p-5 space-y-5">
-            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 aspect-video md:aspect-square relative flex items-center justify-center">
+          <div className="flex-1 p-4 md:p-5 space-y-4 md:space-y-5">
+            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 aspect-video relative flex items-center justify-center">
               {captureData.image_url ? (
                 <img 
                   src={captureData.image_url} 
@@ -235,7 +243,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                   // Force a resize event after a slight delay so Pannellum recalculates its container bounds
                   setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
                 }}
-                className="w-full py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium shadow-sm transition-colors flex items-center justify-center"
+                className="w-full py-3 md:py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium shadow-sm transition-colors flex items-center justify-center min-h-[44px]"
               >
                 ✏️ Markup Image (Optional)
               </button>
@@ -248,7 +256,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setMarkupImageUrl(null)}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs shadow-md transition-colors z-10"
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white p-1.5 rounded-full transition-colors backdrop-blur-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                   title="Remove Markup"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -256,42 +264,34 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
               </div>
             )}
             
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
-              <div className="flex items-start">
-                <MapPin className="w-4 h-4 mr-2 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Location</div>
-                  <div className="text-sm font-semibold text-gray-900">{captureData.location_name}</div>
-                </div>
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Location Context</h4>
+              <div className="flex items-center text-sm font-medium text-gray-800">
+                <MapPin className="w-4 h-4 mr-2 text-brand-500 shrink-0" />
+                {captureData.location_name}
               </div>
-              
-              <div className="flex items-start">
-                <Calendar className="w-4 h-4 mr-2 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Captured On</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {new Date(captureData.captured_at).toLocaleString()}
-                  </div>
-                </div>
+              <div className="flex items-center text-sm text-gray-600 mt-2">
+                <Calendar className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
+                {new Date(captureData.captured_at).toLocaleString()}
               </div>
             </div>
           </div>
         </div>
         
-        {/* Right Panel - Form */}
-        <div className="w-full md:w-7/12 flex flex-col bg-white">
-          <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center">
+        {/* Right Panel - Form Fields */}
+        <div className="w-full md:w-7/12 flex flex-col bg-white overflow-hidden">
+          <div className="hidden md:flex justify-between items-center p-5 border-b border-gray-100 bg-white shrink-0">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
               <AlertCircle className="w-5 h-5 mr-2 text-brand-600" />
-              Create Issue
+              Log New Issue
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-xl transition-colors">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-6">
-            <form id="create-issue-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white">
+            <form id="create-issue-form" onSubmit={handleSubmit} className="space-y-5">
               
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -302,39 +302,41 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Exposed wiring in ceiling"
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow"
+                  placeholder="e.g. Scratched drywall near entrance"
+                  className="w-full px-4 py-3 md:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow min-h-[44px]"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Issue Type <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={issueType}
+                    onChange={(e) => setIssueType(e.target.value)}
+                    className="w-full px-4 py-3 md:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white min-h-[44px]"
+                  >
+                    <option value="defect">Defect</option>
+                    <option value="safety_issue">Safety Issue</option>
+                    <option value="quality_issue">Quality Issue</option>
+                    <option value="incomplete_work">Incomplete Work</option>
+                    <option value="rework_required">Rework Required</option>
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Description
+                  Description (Optional)
                 </label>
                 <textarea 
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide additional details about the issue..."
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow resize-none"
+                  placeholder="Provide additional details..."
+                  className="w-full px-4 py-3 md:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow resize-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Issue Type
-                </label>
-                <select
-                  value={issueType}
-                  onChange={(e) => setIssueType(e.target.value)}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow bg-white"
-                >
-                  <option value="defect">Defect</option>
-                  <option value="safety_issue">Safety Issue</option>
-                  <option value="quality_issue">Quality Issue</option>
-                  <option value="incomplete_work">Incomplete Work</option>
-                  <option value="rework_required">Rework Required</option>
-                </select>
               </div>
 
               <div>
@@ -352,27 +354,27 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 <button 
                   type="button" 
                   onClick={() => photoInputRef.current?.click()}
-                  className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-brand-600 hover:border-brand-500 hover:bg-brand-50 transition-colors flex items-center justify-center text-sm font-medium"
+                  className="w-full py-3 md:py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-brand-600 hover:border-brand-500 hover:bg-brand-50 transition-colors flex items-center justify-center text-sm font-medium min-h-[44px]"
                 >
-                  <ImageIcon className="w-4 h-4 mr-2" />
+                  <ImageIcon className="w-5 h-5 md:w-4 md:h-4 mr-2" />
                   + Add Photo
                 </button>
                 
                 {selectedPhotos.length > 0 && (
-                  <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+                  <div className="mt-3 flex gap-3 md:gap-2 overflow-x-auto pb-2 snap-x">
                     {selectedPhotos.map((photo, idx) => (
-                      <div key={idx} className="relative shrink-0">
+                      <div key={idx} className="relative shrink-0 snap-start">
                         <img 
                           src={URL.createObjectURL(photo)} 
                           alt="Preview" 
-                          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                          className="w-20 h-20 md:w-16 md:h-16 object-cover rounded-lg border border-gray-200"
                         />
                         <button 
                           type="button"
                           onClick={() => removePhoto(idx)}
-                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                          className="absolute -top-2 -right-2 md:-top-1.5 md:-right-1.5 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-sm min-h-[32px] min-w-[32px] flex items-center justify-center"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3 h-3 md:w-3 md:h-3" />
                         </button>
                       </div>
                     ))}
@@ -391,7 +393,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                   value={initialComment}
                   onChange={(e) => setInitialComment(e.target.value)}
                   placeholder="What action needs to be taken?"
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow resize-none"
+                  className="w-full px-4 py-3 md:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow resize-none"
                 />
               </div>
 
@@ -406,12 +408,12 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 ) : (
                   <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-gray-100">
                     {contractors.map(c => (
-                      <label key={c.id} className="flex items-center p-3 hover:bg-brand-50 transition-colors cursor-pointer group">
+                      <label key={c.id} className="flex items-center p-3 hover:bg-brand-50 transition-colors cursor-pointer group min-h-[44px]">
                         <input 
                           type="checkbox" 
                           checked={selectedContractors.includes(c.id)}
                           onChange={() => handleContractorToggle(c.id)}
-                          className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 mr-3"
+                          className="w-5 h-5 md:w-4 md:h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 mr-3"
                         />
                         <div>
                           <div className="text-sm font-semibold text-gray-900 group-hover:text-brand-900">{c.name}</div>
@@ -426,12 +428,12 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
             </form>
           </div>
           
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end space-x-3 rounded-br-2xl">
+          <div className="p-4 md:px-6 md:py-4 border-t border-gray-100 bg-gray-50 flex flex-col-reverse md:flex-row justify-end md:space-x-3 md:rounded-br-2xl shrink-0 gap-3 md:gap-0 mt-auto">
             <button 
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-full md:w-auto px-5 py-3 md:py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 min-h-[44px]"
             >
               Cancel
             </button>
@@ -439,7 +441,7 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
               type="submit"
               form="create-issue-form"
               disabled={isSubmitting}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors shadow-sm disabled:opacity-50 flex items-center"
+              className="w-full md:w-auto px-5 py-3 md:py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center min-h-[44px]"
             >
               {isSubmitting ? (
                 <>

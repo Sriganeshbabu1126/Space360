@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 from enum import Enum
 
@@ -62,6 +62,49 @@ class SiteResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Project Schemas (wraps Site) ---
+class ProjectStats(BaseModel):
+    total_issues: int = 0
+    open_issues: int = 0
+    critical_issues: int = 0
+    closed_issues: int = 0
+    total_floor_plans: int = 0
+    total_captures: int = 0
+    assigned_contractors: int = 0
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    location: Optional[str] = None # Maps to address
+    status: StatusEnum
+    description: Optional[str] = None
+    stats: Optional[ProjectStats] = None
+    last_activity_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[StatusEnum] = None
+
+class ProjectCreate(BaseModel):
+    name: str
+    location: Optional[str] = None
+    description: Optional[str] = None
+    org_id: Optional[str] = None
+
+class ProjectListResponse(BaseModel):
+    projects: List[ProjectResponse]
+
+class ProjectDetailResponse(ProjectResponse):
+    floor_plans: List['FloorPlanResponse'] = []
+    recent_issues: List['IssueResponse'] = []
+    contractors: List['ContractorResponse'] = []
 
 # --- FloorPlan Schemas ---
 class FloorPlanCreate(BaseModel):
@@ -163,6 +206,7 @@ class ContractorCreate(BaseModel):
     designation: Optional[str] = None
     contact: Optional[str] = None
     access_level: Optional[AccessLevelEnum] = AccessLevelEnum.view_only
+    site_ids: Optional[List[str]] = []
 
 class ContractorUpdate(BaseModel):
     name: Optional[str] = None
@@ -171,6 +215,7 @@ class ContractorUpdate(BaseModel):
     designation: Optional[str] = None
     contact: Optional[str] = None
     access_level: Optional[AccessLevelEnum] = None
+    site_ids: Optional[List[str]] = None
 
 class ContractorResponse(BaseModel):
     id: str
@@ -182,6 +227,7 @@ class ContractorResponse(BaseModel):
     access_level: AccessLevelEnum
     created_by: str
     created_at: datetime
+    sites: List[SiteResponse] = []
 
     class Config:
         from_attributes = True
@@ -260,3 +306,16 @@ class IssueResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Issue Notification Schemas ---
+class IssueNotificationResponse(BaseModel):
+    id: str
+    issue_id: str
+    sent_to: str
+    sent_at: datetime
+    status: str
+
+    class Config:
+        from_attributes = True
+
+ProjectDetailResponse.model_rebuild()

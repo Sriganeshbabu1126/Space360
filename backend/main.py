@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import sites, floor_plans, locations, sessions, \
-                        voice_notes, annotations, ai_features, contractors, issues
+from app.routers import sites, projects, floor_plans, locations, sessions, \
+                        voice_notes, annotations, ai_features, contractors, issues, dashboard
 from app.database import engine, Base
 
 Base.metadata.create_all(bind=engine)
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(sites.router, prefix="/sites", tags=["Sites"])
+app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(floor_plans.router, prefix="/floor-plans", 
                    tags=["Floor Plans"])
 app.include_router(locations.router, prefix="/locations", 
@@ -39,6 +40,8 @@ app.include_router(contractors.router, prefix="/contractors",
                    tags=["Contractors"])
 app.include_router(issues.router, prefix="/issues", 
                    tags=["Issues"])
+app.include_router(dashboard.router, prefix="/dashboard", 
+                   tags=["Dashboard"])
 
 @app.get("/health")
 def health_check():
