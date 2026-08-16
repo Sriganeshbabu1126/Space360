@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
 import CreateIssueModal from '../components/CreateIssueModal';
+import FrameTimelineViewer from '../components/FrameTimelineViewer';
 
 const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -21,6 +22,7 @@ const CapturesPage: React.FC = () => {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [filterSiteId, setFilterSiteId] = useState<string>('');
   const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
+  const [selectedFrameForIssue, setSelectedFrameForIssue] = useState<any>(null);
 
   // Modal states
   const [sites, setSites] = useState<any[]>([]);
@@ -77,6 +79,14 @@ const CapturesPage: React.FC = () => {
     fetchCaptures();
   }, [filterSiteId]);
 
+  useEffect(() => {
+    const hasPending = captures.some(c => c.processing_status === 'pending');
+    if (hasPending) {
+      const interval = setInterval(fetchCaptures, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [captures]);
+
   // Load sites once for both the filter and the modal
   useEffect(() => {
     getSites().then(res => {
@@ -123,8 +133,10 @@ const CapturesPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
-      if (f.type !== 'image/jpeg' && f.type !== 'image/png' && !f.name.toLowerCase().endsWith('.jpg') && !f.name.toLowerCase().endsWith('.jpeg') && !f.name.toLowerCase().endsWith('.png')) {
-        toast.error('Only JPG and PNG files are allowed.');
+      const isImage = f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg') || f.name.toLowerCase().endsWith('.png');
+      const isVideo = f.type.startsWith('video/') || f.name.toLowerCase().endsWith('.mp4') || f.name.toLowerCase().endsWith('.mov') || f.name.toLowerCase().endsWith('.webm');
+      if (!isImage && !isVideo) {
+        toast.error('Only JPG, PNG images and MP4, MOV videos are allowed.');
         return;
       }
       setFile(f);
@@ -153,10 +165,14 @@ const CapturesPage: React.FC = () => {
     }
   };
 
-  const handleView360 = (e: React.MouseEvent, imageUrl: string) => {
+  const [selectedSequenceData, setSelectedSequenceData] = useState<any>(null);
+
+  const handleView360 = (e: React.MouseEvent, capture: any) => {
     e.stopPropagation();
-    if (imageUrl) {
-      setViewerUrl(imageUrl);
+    if (capture.frames && capture.frames.length > 0) {
+      setSelectedSequenceData(capture);
+    } else if (capture.image_url) {
+      setViewerUrl(capture.image_url);
     } else {
       toast.error('No image available for this capture');
     }
@@ -220,9 +236,15 @@ const CapturesPage: React.FC = () => {
                   <div className="w-full h-full flex items-center justify-center bg-gray-100"><Camera className="w-8 h-8 text-gray-300" /></div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button onClick={(e) => handleView360(e, c.image_url)} className="bg-white/20 backdrop-blur border border-white/50 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-lg transform scale-90 group-hover:scale-100 transition-all hover:bg-white hover:text-gray-900">
-                    <Eye className="w-4 h-4 mr-2" /> View 360°
-                  </button>
+                  {c.processing_status === 'pending' ? (
+                    <div className="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-lg">
+                      <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span> Processing...
+                    </div>
+                  ) : (
+                    <button onClick={(e) => handleView360(e, c)} className="bg-white/20 backdrop-blur border border-white/50 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-lg transform scale-90 group-hover:scale-100 transition-all hover:bg-white hover:text-gray-900">
+                      <Eye className="w-4 h-4 mr-2" /> {c.frames?.length > 0 ? 'View Sequence' : 'View 360°'}
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="p-5">
@@ -344,18 +366,59 @@ const CapturesPage: React.FC = () => {
         <Viewer360 imageUrl={viewerUrl} onClose={() => setViewerUrl(null)} />
       )}
 
+      {selectedSequenceData && (
+        <div className="fixed inset-0 z-40 bg-white flex flex-col pt-16">
+          <div className="absolute top-4 right-4 z-50">
+            <button onClick={() => { setSelectedSequenceData(null); setSelectedFrameForIssue(null); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors shadow-sm">
+              <X className="w-6 h-6 text-gray-700" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-6 max-w-7xl mx-auto w-full">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Video Sequence Frames</h2>
+            <FrameTimelineViewer 
+              frames={selectedSequenceData.frames} 
+              selectedFrameId={selectedFrameForIssue?.id}
+              onSelectFrame={(frame) => {
+                setSelectedFrameForIssue(frame);
+                setViewerUrl(frame.frame_url);
+              }}
+            />
+            
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <h3 className="text-xl font-bold mb-4">Create Issue from Frame</h3>
+              {selectedFrameForIssue ? (
+                <button 
+                  onClick={() => {
+                    setSelectedCaptureForIssue(selectedSequenceData);
+                    setShowIssueModal(true);
+                  }}
+                  className="btn-primary"
+                >
+                  Log Issue at Frame {selectedFrameForIssue.frame_number} ({selectedFrameForIssue.timestamp_seconds}s)
+                </button>
+              ) : (
+                <p className="text-gray-500">Please select a frame above to log an issue at a specific timestamp.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showIssueModal && selectedCaptureForIssue && (
         <CreateIssueModal
           captureData={{
             id: selectedCaptureForIssue.id,
-            image_url: selectedCaptureForIssue.image_url,
+            image_url: selectedFrameForIssue ? selectedFrameForIssue.frame_url : selectedCaptureForIssue.image_url,
             captured_at: selectedCaptureForIssue.captured_at,
-            location_name: selectedCaptureForIssue.location_label || selectedCaptureForIssue.location_point_id
+            location_name: selectedCaptureForIssue.location_label || selectedCaptureForIssue.location_point_id,
+            frame_a_id: selectedFrameForIssue ? selectedFrameForIssue.id : undefined,
+            frame_timestamp: selectedFrameForIssue ? selectedFrameForIssue.timestamp_seconds : undefined,
           }}
           captureId={selectedCaptureForIssue.id}
           onClose={() => {
             setShowIssueModal(false);
             setSelectedCaptureForIssue(null);
+            setSelectedFrameForIssue(null);
           }}
           onSubmit={async (data) => {
             try {
@@ -365,6 +428,7 @@ const CapturesPage: React.FC = () => {
                 issue_type: data.issue_type,
                 location_id: selectedCaptureForIssue.location_point_id,
                 session_a_id: selectedCaptureForIssue.id,
+                frame_a_id: selectedFrameForIssue ? selectedFrameForIssue.id : undefined,
                 contractor_ids: data.contractor_ids
               };
               const res = await createIssue(payload);

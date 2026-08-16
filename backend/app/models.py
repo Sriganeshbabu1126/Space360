@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import (Column, String, Float, Boolean, 
-                        DateTime, Text, JSON, ForeignKey, Enum)
+                        DateTime, Text, JSON, ForeignKey, Enum, Integer)
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
@@ -116,6 +116,13 @@ class CaptureSession(Base):
                        default=AIStatusEnum.pending)
     ai_summary = Column(Text)
     ai_changes = Column(JSON)
+    # Video sequence fields
+    video_url = Column(String, nullable=True)
+    fps = Column(Integer, default=2)
+    total_frames = Column(Integer, nullable=True)
+    processing_status = Column(String, default="pending")  # pending, complete, failed
+    error_message = Column(Text, nullable=True)
+    processing_completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     location_point = relationship("LocationPoint", 
@@ -126,6 +133,10 @@ class CaptureSession(Base):
     annotations = relationship("Annotation", 
                                back_populates="session",
                                cascade="all, delete-orphan")
+    frames = relationship("CaptureFrame", 
+                          back_populates="session",
+                          cascade="all, delete-orphan",
+                          order_by="CaptureFrame.frame_number")
 
     @property
     def location_label(self):
@@ -136,6 +147,20 @@ class CaptureSession(Base):
         if self.location_point and self.location_point.floor_plan and self.location_point.floor_plan.site:
             return self.location_point.floor_plan.site.name
         return "Unknown Site"
+
+
+class CaptureFrame(Base):
+    __tablename__ = "capture_frames"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("capture_sessions.id", ondelete="CASCADE"), nullable=False)
+    frame_number = Column(Integer, nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    frame_url = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("CaptureSession", back_populates="frames")
+
 
 
 class VoiceNote(Base):
@@ -216,6 +241,8 @@ class Issue(Base):
     location_id = Column(String, ForeignKey("location_points.id"), nullable=False)
     session_a_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
     session_b_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    frame_a_id = Column(String, ForeignKey("capture_frames.id"), nullable=True)
+    frame_b_id = Column(String, ForeignKey("capture_frames.id"), nullable=True)
     created_by = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -223,6 +250,8 @@ class Issue(Base):
     location = relationship("LocationPoint")
     session_a = relationship("CaptureSession", foreign_keys=[session_a_id])
     session_b = relationship("CaptureSession", foreign_keys=[session_b_id])
+    frame_a = relationship("CaptureFrame", foreign_keys=[frame_a_id])
+    frame_b = relationship("CaptureFrame", foreign_keys=[frame_b_id])
     assignments = relationship("IssueAssignment", back_populates="issue", cascade="all, delete-orphan")
     comments = relationship("IssueComment", back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at")
     photos = relationship("IssuePhoto", back_populates="issue", cascade="all, delete-orphan", order_by="IssuePhoto.created_at")

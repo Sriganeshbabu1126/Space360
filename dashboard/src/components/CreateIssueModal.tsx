@@ -19,6 +19,8 @@ export interface CaptureData {
   image_url: string;
   captured_at: string;
   location_name: string;
+  frame_a_id?: string;
+  frame_timestamp?: number;
 }
 
 interface CreateIssueModalProps {
@@ -274,6 +276,12 @@ const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 <Calendar className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
                 {new Date(captureData.captured_at).toLocaleString()}
               </div>
+              {captureData.frame_timestamp !== undefined && (
+                <div className="text-sm text-brand-600 font-bold flex items-center mt-1">
+                  <Camera className="w-3 h-3 mr-1" />
+                  Frame at {captureData.frame_timestamp}s
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -143,6 +143,18 @@ class LocationPointResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- CaptureFrame Schemas ---
+class CaptureFrameResponse(BaseModel):
+    id: str
+    session_id: str
+    frame_number: int
+    timestamp_seconds: float
+    frame_url: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- CaptureSession Schemas ---
 class CaptureSessionResponse(BaseModel):
     id: str
@@ -157,6 +169,16 @@ class CaptureSessionResponse(BaseModel):
     ai_status: AIStatusEnum
     ai_summary: Optional[str]
     ai_changes: Optional[dict]
+    
+    # Video sequence fields
+    video_url: Optional[str] = None
+    fps: int = 2
+    total_frames: Optional[int] = None
+    processing_status: str = "pending"
+    error_message: Optional[str] = None
+    processing_completed_at: Optional[datetime] = None
+    frames: List[CaptureFrameResponse] = []
+    
     created_at: datetime
     location_label: Optional[str] = None
     site_name: Optional[str] = None
@@ -280,6 +302,8 @@ class IssueCreate(BaseModel):
     location_id: str
     session_a_id: Optional[str] = None
     session_b_id: Optional[str] = None
+    frame_a_id: Optional[str] = None
+    frame_b_id: Optional[str] = None
     contractor_ids: Optional[List[str]] = []
 
 class IssueUpdate(BaseModel):
@@ -287,6 +311,8 @@ class IssueUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[IssueStatusEnum] = None
     issue_type: Optional[IssueTypeEnum] = None
+    frame_a_id: Optional[str] = None
+    frame_b_id: Optional[str] = None
 
 class IssueResponse(BaseModel):
     id: str
@@ -298,6 +324,10 @@ class IssueResponse(BaseModel):
     location_name: Optional[str] = None
     session_a_id: Optional[str]
     session_b_id: Optional[str]
+    frame_a_id: Optional[str] = None
+    frame_b_id: Optional[str] = None
+    frame_a: Optional[CaptureFrameResponse] = None
+    frame_b: Optional[CaptureFrameResponse] = None
     created_by: str
     created_at: datetime
     updated_at: datetime

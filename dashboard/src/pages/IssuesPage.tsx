@@ -43,6 +43,10 @@ interface Issue {
   location_name?: string;
   session_a_id: string;
   session_b_id: string;
+  frame_a_id?: string;
+  frame_b_id?: string;
+  frame_a?: any;
+  frame_b?: any;
   created_by: string;
   created_at: string;
   assignments: IssueAssignment[];
@@ -630,6 +634,15 @@ const IssuesPage: React.FC = () => {
                   </span>
                   <span className="text-gray-400 hidden sm:inline">|</span>
                   <span className="text-gray-500">{new Date(selectedIssue.created_at).toLocaleDateString()}</span>
+                  {selectedIssue.frame_a && (
+                    <>
+                      <span className="text-gray-400 hidden sm:inline">|</span>
+                      <span className="text-brand-600 font-bold flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        Frame at {selectedIssue.frame_a.timestamp_seconds}s
+                      </span>
+                    </>
+                  )}
                 </div>
                 
                 {selectedIssue.session_a_id && (
