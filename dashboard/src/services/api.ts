@@ -26,6 +26,11 @@ export const getAuthHeaders = async (): Promise<Record<string, string>> => {
 };
 
 
+// --- Projects ---
+export const getProjects = () => api.get("/projects/");
+export const getProject = (id: string) => api.get(`/projects/${id}`);
+export const updateProject = (id: string, data: any) => api.put(`/projects/${id}`, data);
+
 // --- Sites ---
 export const getSites = () => 
   api.get("/sites/");
@@ -102,10 +107,11 @@ export const updateContractor = (id: string, data: any) => api.put(`/contractors
 export const deleteContractor = (id: string) => api.delete(`/contractors/${id}`);
 
 // --- Issues ---
-export const getIssues = (status?: string, locationId?: string) => {
+export const getIssues = (status?: string, locationId?: string, siteId?: string) => {
   const params = new URLSearchParams();
   if (status) params.append('status', status);
   if (locationId) params.append('location_id', locationId);
+  if (siteId) params.append('site_id', siteId);
   const query = params.toString();
   return api.get(`/issues/${query ? `?${query}` : ''}`);
 };
@@ -122,3 +128,8 @@ export const uploadIssuePhoto = (id: string, file: File) => {
   form.append("file", file);
   return api.post(`/issues/${id}/photos`, form);
 };
+export const sendIssueNotification = (id: string) => api.post(`/issues/${id}/send-notification`);
+
+// --- Dashboard ---
+export const getDashboardStats = () => api.get('/dashboard/stats');
+export const getDashboardTimeline = () => api.get('/dashboard/timeline');

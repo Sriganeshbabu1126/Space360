@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment, uploadIssuePhoto } from '../services/api';
+import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment, uploadIssuePhoto, sendIssueNotification } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
@@ -402,7 +402,14 @@ const CapturesPage: React.FC = () => {
                 }
               }
 
-              toast.success("Issue created successfully");
+              try {
+                await sendIssueNotification(issueId);
+                toast.success("Issue created & notification sent to contractors");
+              } catch (e) {
+                console.error("Failed to send notification:", e);
+                toast.success("Issue created successfully (Notifications failed)");
+              }
+              
               setShowIssueModal(false);
               setSelectedCaptureForIssue(null);
             } catch (err) {

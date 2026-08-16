@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getSites, createSite } from '../services/api';
 import { MapPin, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useSite } from '../context/SiteContext';
 
 const SitesPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const { setSelectedSiteId } = useSite();
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,7 +82,14 @@ const SitesPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sites.map(site => (
-            <div key={site.id} className="card hover:shadow-md transition-shadow">
+            <div 
+              key={site.id} 
+              onClick={() => {
+                setSelectedSiteId(site.id);
+                navigate('/floor-plans');
+              }}
+              className="card hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+            >
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-medium text-gray-900 truncate pr-2">{site.name}</h3>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -89,7 +100,7 @@ const SitesPage: React.FC = () => {
               </div>
               
               {site.address && (
-                <div className="flex items-start text-gray-500 text-sm mb-6">
+                <div className="flex items-start text-gray-500 text-sm mb-6 flex-grow">
                   <MapPin className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
                   <p className="line-clamp-2">{site.address}</p>
                 </div>
@@ -97,7 +108,9 @@ const SitesPage: React.FC = () => {
               
               <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center">
                 <span className="text-sm text-gray-500">0 Captures</span>
-                <button className="text-brand-600 hover:text-brand-800 text-sm font-medium">View &rarr;</button>
+                <span className="text-brand-600 font-medium text-sm">
+                  Floor Plans &rarr;
+                </span>
               </div>
             </div>
           ))}

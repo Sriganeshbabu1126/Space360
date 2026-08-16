@@ -54,6 +54,8 @@ class Site(Base):
     org_id = Column(String)
     created_by = Column(String, nullable=False)
     status = Column(Enum(StatusEnum), default=StatusEnum.active)
+    description = Column(Text, nullable=True)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     floor_plans = relationship("FloorPlan", back_populates="site",
@@ -169,6 +171,19 @@ class Annotation(Base):
                            back_populates="annotations")
 
 
+class ContractorSiteAssignment(Base):
+    __tablename__ = "contractor_site_assignments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    contractor_id = Column(String, ForeignKey("contractors.id", ondelete="CASCADE"), nullable=False)
+    site_id = Column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+    contractor = relationship("Contractor", back_populates="site_assignments")
+    site = relationship("Site")
+
+
 class Contractor(Base):
     __tablename__ = "contractors"
 
@@ -183,6 +198,11 @@ class Contractor(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     assignments = relationship("IssueAssignment", back_populates="contractor", cascade="all, delete-orphan")
+    site_assignments = relationship("ContractorSiteAssignment", back_populates="contractor", cascade="all, delete-orphan")
+
+    @property
+    def sites(self):
+        return [assignment.site for assignment in self.site_assignments if assignment.site]
 
 
 class Issue(Base):
@@ -249,3 +269,14 @@ class IssuePhoto(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     issue = relationship("Issue", back_populates="photos")
+
+class IssueNotification(Base):
+    __tablename__ = "issue_notifications"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    sent_to = Column(String, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, nullable=False, default="success")
+
+    issue = relationship("Issue")

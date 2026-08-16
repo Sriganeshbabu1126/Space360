@@ -11,6 +11,7 @@ import {
   getIssueComments, addIssueComment, getIssue
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSite } from '../context/SiteContext';
 import PhotoGallery, { IssuePhoto } from '../components/PhotoGallery';
 
 interface Contractor {
@@ -67,6 +68,7 @@ const issueTypeLabels: Record<string, string> = {
 const IssuesPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
+  const { selectedSiteId } = useSite(); // Add this
   
   const [issues, setIssues] = useState<Issue[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -81,11 +83,16 @@ const IssuesPage: React.FC = () => {
   const [comments, setComments] = useState<IssueComment[]>([]);
   const [newComment, setNewComment] = useState('');
 
+  // Bulk action state
+  const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
+  const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
+      // Wait for selectedSiteId if needed? If null, it just passes undefined
       const [issuesRes, contractorsRes] = await Promise.all([
-        getIssues(filterStatus || undefined),
+        getIssues(filterStatus || undefined, undefined, selectedSiteId || undefined),
         getContractors()
       ]);
       setIssues(issuesRes.data);
@@ -97,6 +104,10 @@ const IssuesPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [filterStatus, selectedSiteId]);
 
   useEffect(() => {
     fetchData();
@@ -240,6 +251,74 @@ const IssuesPage: React.FC = () => {
     }
   };
 
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIssueIds(filteredIssues.map(i => i.id));
+    } else {
+      setSelectedIssueIds([]);
+    }
+  };
+
+  const handleSelectRow = (e: React.MouseEvent | React.ChangeEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedIssueIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkStatusChange = async (newStatus: string) => {
+    if (!newStatus || newStatus.startsWith('Change')) return;
+    try {
+      setLoading(true);
+      for (const issueId of selectedIssueIds) {
+        await updateIssue(issueId, { status: newStatus });
+      }
+      toast.success(`${selectedIssueIds.length} issues updated`);
+      setSelectedIssueIds([]);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update some issues');
+      setLoading(false);
+    }
+  };
+
+  const handleBulkReassign = async (contractorId: string) => {
+    if (!contractorId || contractorId.startsWith('Reassign')) return;
+    try {
+      setLoading(true);
+      for (const issueId of selectedIssueIds) {
+        await assignContractorToIssue(issueId, contractorId);
+      }
+      toast.success(`${selectedIssueIds.length} issues reassigned`);
+      setSelectedIssueIds([]);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to reassign some issues');
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedIssueIds.length} issues? This cannot be undone.`)) {
+      try {
+        setLoading(true);
+        for (const issueId of selectedIssueIds) {
+          await deleteIssue(issueId);
+        }
+        toast.success(`${selectedIssueIds.length} issues deleted`);
+        setSelectedIssueIds([]);
+        fetchData();
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to delete some issues');
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 shrink-0 space-y-4">
@@ -320,6 +399,54 @@ const IssuesPage: React.FC = () => {
         </div>
       </div>
 
+      {selectedIssueIds.length > 0 && (
+        <div className="sticky top-0 bg-blue-50 border border-blue-200 p-3 sm:p-4 rounded-xl flex items-center justify-between z-20 shadow-sm animate-fade-in flex-wrap gap-3">
+          <span className="text-sm font-bold text-blue-800">
+            {selectedIssueIds.length} issue(s) selected
+          </span>
+          
+          <div className="flex flex-wrap gap-2">
+            <select 
+              onChange={(e) => handleBulkStatusChange(e.target.value)}
+              className="input py-1.5 text-sm"
+              value=""
+            >
+              <option value="">Change Status...</option>
+              <option value="open">Set to Open</option>
+              <option value="in_review">Set to In Review</option>
+              {isAdmin && <option value="pending">Set to Pending</option>}
+              {isAdmin && <option value="closed">Set to Closed</option>}
+              {isAdmin && <option value="critical">Set to Critical</option>}
+            </select>
+            
+            <select 
+              onChange={(e) => handleBulkReassign(e.target.value)}
+              className="input py-1.5 text-sm"
+              value=""
+            >
+              <option value="">Reassign to...</option>
+              {contractors.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            
+            <button 
+              onClick={handleBulkDelete}
+              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg text-sm shadow-sm transition-colors"
+            >
+              Delete
+            </button>
+            
+            <button 
+              onClick={() => setSelectedIssueIds([])}
+              className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg text-sm transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
         {loading ? (
           <div className="p-12 text-center text-gray-500 m-auto">Loading issues...</div>
@@ -330,119 +457,190 @@ const IssuesPage: React.FC = () => {
             <p className="text-gray-500">Try adjusting your filters or create a new issue.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
-              <thead className="sticky top-0 bg-gray-50 z-10">
-                <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold">Type</th>
-                  <th className="px-6 py-4 font-semibold">Title</th>
-                  <th className="px-6 py-4 font-semibold">Location / Description</th>
-                  <th className="px-6 py-4 font-semibold">Assigned To</th>
-                  <th className="px-6 py-4 font-semibold">Created Date</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredIssues.map(issue => {
-                  const conf = statusConfig[issue.status] || statusConfig.open;
-                  const StatusIcon = conf.icon;
-                  return (
-                    <tr 
-                      key={issue.id} 
-                      onClick={() => handleRowClick(issue)}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${conf.color}`}>
-                          <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
-                          {conf.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wider">
-                          {issueTypeLabels[issue.issue_type] || issue.issue_type || 'Defect'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-900 truncate max-w-[200px]">{issue.title}</div>
-                        <div className="text-xs text-gray-400 mt-1">By: {issue.created_by.split('@')[0]}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center text-sm text-gray-700 font-medium mb-1">
-                          <MapPin className="w-3.5 h-3.5 mr-1 text-gray-400" /> 
-                          {issue.location_name || 'No location'}
-                        </div>
-                        <div className="text-sm text-gray-500 truncate max-w-[250px]">
-                          {issue.description || 'No description provided.'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
+          <>
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+              {filteredIssues.map(issue => {
+                const conf = statusConfig[issue.status] || statusConfig.open;
+                const StatusIcon = conf.icon;
+                return (
+                  <div 
+                    key={`mobile-${issue.id}`}
+                    onClick={() => handleRowClick(issue)}
+                    className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm active:bg-gray-50 flex flex-col cursor-pointer transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-start">
+                        <input
+                          type="checkbox"
+                          checked={selectedIssueIds.includes(issue.id)}
+                          onChange={(e) => handleSelectRow(e, issue.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 mr-3 w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                        />
+                        <h3 className="font-bold text-gray-900 line-clamp-2 pr-2">{issue.title}</h3>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold border ${conf.color}`}>
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {conf.label}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-xs font-semibold tracking-wider">
+                        {issueTypeLabels[issue.issue_type] || issue.issue_type || 'Defect'}
+                      </span>
+                      
+                      <div className="flex items-center">
                         {issue.assignments.length > 0 ? (
-                          <div className="flex -space-x-2 overflow-hidden">
+                          <div className="flex -space-x-1.5 overflow-hidden">
                             {issue.assignments.map(a => (
-                              <div key={a.id} className="inline-block w-8 h-8 rounded-full ring-2 ring-white bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold" title={a.contractor?.name}>
+                              <div key={a.id} className="inline-block w-6 h-6 rounded-full ring-2 ring-white bg-brand-100 text-brand-700 flex items-center justify-center text-[10px] font-bold" title={a.contractor?.name}>
                                 {a.contractor?.name.substring(0,2).toUpperCase() || '?'}
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-sm italic">Unassigned</span>
+                          <span className="text-gray-400 text-xs italic">Unassigned</span>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">
-                        {new Date(issue.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end">
-                          <button 
-                            onClick={(e) => handleDelete(e, issue.id)} 
-                            className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100" 
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table View */}
+            <div className="overflow-x-auto flex-1 hidden md:block">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
+                <thead className="sticky top-0 bg-gray-50 z-10">
+                  <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider">
+                    <th className="px-6 py-4 w-12">
+                      <input
+                        type="checkbox"
+                        checked={filteredIssues.length > 0 && selectedIssueIds.length === filteredIssues.length}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                      />
+                    </th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold">Type</th>
+                    <th className="px-6 py-4 font-semibold">Title</th>
+                    <th className="px-6 py-4 font-semibold hidden lg:table-cell">Location / Description</th>
+                    <th className="px-6 py-4 font-semibold">Assigned To</th>
+                    <th className="px-6 py-4 font-semibold hidden lg:table-cell">Created Date</th>
+                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredIssues.map(issue => {
+                    const conf = statusConfig[issue.status] || statusConfig.open;
+                    const StatusIcon = conf.icon;
+                    return (
+                      <tr 
+                        key={issue.id} 
+                        onClick={() => handleRowClick(issue)}
+                        className={`transition-colors cursor-pointer group ${selectedIssueIds.includes(issue.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      >
+                        <td className="px-6 py-4 w-12" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIssueIds.includes(issue.id)}
+                            onChange={(e) => handleSelectRow(e, issue.id)}
+                            className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${conf.color}`}>
+                            <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
+                            {conf.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wider">
+                            {issueTypeLabels[issue.issue_type] || issue.issue_type || 'Defect'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-gray-900 truncate max-w-[200px]">{issue.title}</div>
+                          <div className="text-xs text-gray-400 mt-1">By: {issue.created_by.split('@')[0]}</div>
+                        </td>
+                        <td className="px-6 py-4 hidden lg:table-cell">
+                          <div className="flex items-center text-sm text-gray-700 font-medium mb-1">
+                            <MapPin className="w-3.5 h-3.5 mr-1 text-gray-400" /> 
+                            {issue.location_name || 'No location'}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate max-w-[250px]">
+                            {issue.description || 'No description provided.'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {issue.assignments.length > 0 ? (
+                            <div className="flex -space-x-2 overflow-hidden">
+                              {issue.assignments.map(a => (
+                                <div key={a.id} className="inline-block w-8 h-8 rounded-full ring-2 ring-white bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold" title={a.contractor?.name}>
+                                  {a.contractor?.name.substring(0,2).toUpperCase() || '?'}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm italic">Unassigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-sm hidden lg:table-cell">
+                          {new Date(issue.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end">
+                            <button 
+                              onClick={(e) => handleDelete(e, issue.id)} 
+                              className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 min-h-[44px] min-w-[44px] flex items-center justify-center" 
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* Detail Modal */}
       {selectedIssue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in border border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm md:p-4">
+          <div className="bg-white w-full h-full md:h-auto md:rounded-2xl shadow-xl md:max-w-3xl md:max-h-[90vh] flex flex-col overflow-hidden animate-fade-in border-0 md:border md:border-gray-100">
             
-            <div className="flex justify-between items-start px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-              <div>
+            <div className="flex justify-between items-start px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex-1">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedIssue.title}</h3>
-                <div className="flex items-center space-x-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-semibold border ${statusConfig[selectedIssue.status]?.color || statusConfig.open.color}`}>
                     {statusConfig[selectedIssue.status]?.label || 'Open'}
                   </span>
-                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-400 hidden sm:inline">|</span>
                   <span className="text-gray-600 flex items-center gap-1">
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <span className="text-sm font-medium">{selectedIssue.location_name || 'No location'}</span>
                   </span>
-                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-400 hidden sm:inline">|</span>
                   <span className="text-gray-500">{new Date(selectedIssue.created_at).toLocaleDateString()}</span>
                 </div>
                 
                 {selectedIssue.session_a_id && (
-                  <div className="mt-5">
+                  <div className="mt-4 md:mt-5">
                     <button
                       onClick={() => {
                         const captureId = selectedIssue.session_a_id;
                         setSelectedIssue(null);
                         navigate(`/captures?highlight=${captureId}`);
                       }}
-                      className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors shadow-sm flex items-center"
+                      className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors shadow-sm flex items-center min-h-[44px]"
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View 360° Capture
@@ -450,8 +648,11 @@ const IssuesPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <button onClick={() => setSelectedIssue(null)} className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 p-2 rounded-xl transition-colors">
-                <X className="w-5 h-5" />
+              <button 
+                onClick={() => setSelectedIssue(null)} 
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors ml-4 min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
+              >
+                <X className="w-6 h-6" />
               </button>
             </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SiteProvider } from './context/SiteContext';
 import LoginPage from './pages/LoginPage';
 import Layout from './components/Layout';
 import DashboardPage from './pages/DashboardPage';
@@ -14,6 +15,10 @@ import FloorPlansPage from './pages/FloorPlansPage';
 import ProjectMembersPage from './pages/ProjectMembersPage';
 import IssuesPage from './pages/IssuesPage';
 
+import HomePage from './pages/HomePage';
+
+import ProjectDetailPage from './pages/ProjectDetailPage';
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -25,7 +30,9 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-      <Route index element={<DashboardPage />} />
+      <Route index element={<HomePage />} />
+      <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+      <Route path="dashboard" element={<DashboardPage />} />
       <Route path="sites" element={<SitesPage />} />
       <Route path="floor-plans" element={<FloorPlansPage />} />
       <Route path="captures" element={<CapturesPage />} />
@@ -41,10 +48,12 @@ const AppRoutes = () => (
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Toaster position="top-right" />
-        <AppRoutes />
-      </BrowserRouter>
+      <SiteProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Toaster position="top-right" />
+          <AppRoutes />
+        </BrowserRouter>
+      </SiteProvider>
     </AuthProvider>
   );
 };

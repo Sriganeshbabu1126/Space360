@@ -307,56 +307,56 @@ const ImageMarkupCanvas: React.FC<ImageMarkupCanvasProps> = ({ imageUrl, onSaveM
       </div>
 
       {/* Left Floating Tool Dock */}
-      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-3 px-3 py-4 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl">
+      <div className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 md:gap-3 px-2 py-3 md:px-3 md:py-4 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl">
         <button 
           onClick={() => setTool('arrow')} 
-          className={`p-3 rounded-2xl transition-all ${tool === 'arrow' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
+          className={`p-2 md:p-3 rounded-2xl transition-all ${tool === 'arrow' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
           title="Arrow"
         >
-          <ArrowUpRight className="w-6 h-6" />
+          <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
         </button>
         <button 
           onClick={() => setTool('cloud')} 
-          className={`p-3 rounded-2xl transition-all ${tool === 'cloud' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
+          className={`p-2 md:p-3 rounded-2xl transition-all ${tool === 'cloud' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
           title="Cloud"
         >
-          <Cloud className="w-6 h-6" />
+          <Cloud className="w-5 h-5 md:w-6 md:h-6" />
         </button>
         <button 
           onClick={() => setTool('text')} 
-          className={`p-3 rounded-2xl transition-all ${tool === 'text' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
+          className={`p-2 md:p-3 rounded-2xl transition-all ${tool === 'text' ? 'bg-brand-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-110' : 'text-zinc-400 hover:bg-white/10 hover:text-white'}`}
           title="Text"
         >
-          <Type className="w-6 h-6" />
+          <Type className="w-5 h-5 md:w-6 md:h-6" />
         </button>
       </div>
 
       {/* Context Menu (Color & Size) */}
-      <div className="absolute left-[88px] top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-5 px-3 py-5 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl transition-all duration-300">
-        <div className="flex flex-col gap-3">
+      <div className="absolute left-[60px] md:left-[88px] top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4 md:gap-5 px-2 py-3 md:px-3 md:py-5 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl transition-all duration-300">
+        <div className="flex flex-col gap-2 md:gap-3">
           {PRESET_COLORS.map(c => (
             <button 
               key={c}
               onClick={() => setColor(c)}
-              className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${color === c ? 'border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'border-transparent'}`}
+              className={`w-6 h-6 md:w-8 md:h-8 rounded-full border-2 transition-all hover:scale-110 ${color === c ? 'border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'border-transparent'}`}
               style={{ backgroundColor: c }}
               title={c}
             />
           ))}
         </div>
         <div className="w-full h-px bg-white/10" />
-        <div className="flex flex-col gap-4 items-center py-2">
+        <div className="flex flex-col gap-3 md:gap-4 items-center py-2">
           {PRESET_SIZES.map(size => (
             <button 
               key={size}
               onClick={() => setLineWidth(size)}
               className={`rounded-full transition-all flex items-center justify-center ${lineWidth === size ? 'bg-zinc-700 ring-2 ring-brand-500' : 'hover:bg-zinc-800'}`}
-              style={{ width: 32, height: 32 }}
+              style={{ width: 28, height: 28 }}
               title={`Size ${size}`}
             >
               <div 
                 className="bg-zinc-300 rounded-full" 
-                style={{ width: size + 4, height: size + 4, backgroundColor: lineWidth === size ? '#0ea5e9' : '#d4d4d8' }} 
+                style={{ width: size + 2, height: size + 2, backgroundColor: lineWidth === size ? '#0ea5e9' : '#d4d4d8' }} 
               />
             </button>
           ))}
