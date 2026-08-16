@@ -36,6 +36,8 @@ def create_issue(
         location_id=payload.location_id,
         session_a_id=payload.session_a_id,
         session_b_id=payload.session_b_id,
+        frame_a_id=payload.frame_a_id,
+        frame_b_id=payload.frame_b_id,
         created_by=current_user.get("email", "system")
     )
     db.add(issue)

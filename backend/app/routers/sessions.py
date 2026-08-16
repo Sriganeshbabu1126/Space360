@@ -1,12 +1,13 @@
 from fastapi import (APIRouter, Depends, HTTPException, 
-                     UploadFile, File, Query, Form)
+                     UploadFile, File, Query, Form, BackgroundTasks)
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
-from app.models import CaptureSession, LocationPoint
-from app.schemas import CaptureSessionResponse
+from app.models import CaptureSession, LocationPoint, CaptureFrame
+from app.schemas import CaptureSessionResponse, CaptureFrameResponse
 from app.services.gcs_service import upload_private_file, get_signed_url
+from app.utils.video_processor import extract_frames_from_video
 import uuid
 import io
 from PIL import Image
@@ -50,6 +51,7 @@ def list_sessions(
              response_model=CaptureSessionResponse, status_code=201)
 async def create_session(
     location_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     device_model: Optional[str] = Form(None),
     gps_lat: Optional[float] = Form(None),
@@ -60,46 +62,62 @@ async def create_session(
     loc = db.query(LocationPoint).filter(
         LocationPoint.id == location_id).first()
     if not loc:
-        raise HTTPException(status_code=404, 
-                            detail="Location not found")
+        raise HTTPException(status_code=404, detail="Location not found")
 
-    # Get site_id by traversing the relationship
     site_id = loc.floor_plan.site_id
     session_id = str(uuid.uuid4())
     file_bytes = await file.read()
 
-    # Define paths
-    image_path = f"sites/{site_id}/locations/{location_id}/sessions/{session_id}/image.jpg"
-    thumb_path = f"sites/{site_id}/locations/{location_id}/sessions/{session_id}/thumbnail.jpg"
-
-    # Upload full image
-    upload_private_file(file_bytes, image_path, "image/jpeg")
-
-    # Generate and upload thumbnail
-    img = Image.open(io.BytesIO(file_bytes))
-    img.thumbnail((800, 400))
-    thumb_bytes = io.BytesIO()
-    img.save(thumb_bytes, format="JPEG", quality=75)
-    upload_private_file(thumb_bytes.getvalue(), thumb_path, "image/jpeg")
-
-    # Generate signed URLs
-    image_url = get_signed_url(image_path)
-    thumbnail_url = get_signed_url(thumb_path)
+    is_video = file.content_type and file.content_type.startswith("video/")
 
     session = CaptureSession(
         id=session_id,
         location_point_id=location_id,
-        image_url=image_url,
-        thumbnail_url=thumbnail_url,
         captured_by="system",  # replaced by auth later
         device_model=device_model,
         gps_lat=gps_lat,
         gps_lng=gps_lng,
         captured_at=captured_at if captured_at else datetime.utcnow(),
     )
-    db.add(session)
-    db.commit()
-    db.refresh(session)
+
+    if is_video:
+        video_path = f"sites/{site_id}/locations/{location_id}/sessions/{session_id}/video.mp4"
+        upload_private_file(file_bytes, video_path, file.content_type)
+        session.video_url = get_signed_url(video_path)
+        session.processing_status = "pending"
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        
+        background_tasks.add_task(
+            extract_frames_from_video,
+            video_bytes=file_bytes,
+            session_id=session_id,
+            site_id=site_id,
+            location_id=location_id,
+            db=Session(bind=db.get_bind()),
+            fps=2
+        )
+    else:
+        # Upload full image
+        image_path = f"sites/{site_id}/locations/{location_id}/sessions/{session_id}/image.jpg"
+        thumb_path = f"sites/{site_id}/locations/{location_id}/sessions/{session_id}/thumbnail.jpg"
+        
+        upload_private_file(file_bytes, image_path, "image/jpeg")
+        
+        img = Image.open(io.BytesIO(file_bytes))
+        img.thumbnail((800, 400))
+        thumb_bytes = io.BytesIO()
+        img.save(thumb_bytes, format="JPEG", quality=75)
+        upload_private_file(thumb_bytes.getvalue(), thumb_path, "image/jpeg")
+        
+        session.image_url = get_signed_url(image_path)
+        session.thumbnail_url = get_signed_url(thumb_path)
+        session.processing_status = "complete"
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+
     return session
 
 @router.get("/compare", response_model=List[CaptureSessionResponse])
