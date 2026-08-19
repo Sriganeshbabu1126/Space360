@@ -172,9 +172,9 @@ class CaptureSessionResponse(BaseModel):
     
     # Video sequence fields
     video_url: Optional[str] = None
-    fps: int = 2
+    fps: Optional[int] = 2
     total_frames: Optional[int] = None
-    processing_status: str = "pending"
+    processing_status: Optional[str] = "pending"
     error_message: Optional[str] = None
     processing_completed_at: Optional[datetime] = None
     frames: List[CaptureFrameResponse] = []

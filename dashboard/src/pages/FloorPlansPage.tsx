@@ -4,12 +4,13 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { getSites, getFloorPlans, getLocations, uploadFloorPlan, createLocation, deleteFloorPlan } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSite } from '../context/SiteContext';
 
 const FloorPlansPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { selectedSiteId, setSelectedSiteId } = useSite();
   const navigate = useNavigate();
   const [sites, setSites] = useState<any[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -34,7 +35,7 @@ const FloorPlansPage: React.FC = () => {
       try {
         const res = await getSites();
         setSites(res.data);
-        if (res.data.length > 0) {
+        if (res.data.length > 0 && !selectedSiteId) {
           setSelectedSiteId(res.data[0].id);
         }
       } catch (err) {
@@ -319,23 +320,39 @@ const FloorPlansPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-2xl shadow-sm border border-gray-200 gap-4">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-black text-gray-900">Floor Plans</h2>
-          <select 
-            className="input min-w-[200px] bg-gray-50 font-medium"
-            value={selectedSiteId}
-            onChange={(e) => setSelectedSiteId(e.target.value)}
-          >
-            {sites.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
+        <div className="flex flex-col w-full sm:w-1/2 md:w-1/3">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Site</label>
+          <div className="relative">
+            <select 
+              className="appearance-none w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold text-lg py-3 px-4 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer shadow-sm hover:bg-white"
+              value={selectedSiteId || ''}
+              onChange={(e) => setSelectedSiteId(e.target.value)}
+            >
+              {sites.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
         </div>
-        <button onClick={() => setShowUploadModal(true)} className="btn-primary flex items-center shadow-md py-2.5">
+        <button onClick={() => setShowUploadModal(true)} className="btn-primary flex items-center shadow-lg hover:shadow-xl py-3 px-6 w-full sm:w-auto justify-center rounded-xl font-bold text-base transition-all hover:-translate-y-0.5">
           <Upload className="w-5 h-5 mr-2" />
           Upload Floor Plan
         </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Floor Plans</h2>
+          <p className="text-gray-500 mt-1 font-medium">Manage interactive maps and location pins for {sites.find(s => s.id === selectedSiteId)?.name || 'this site'}.</p>
+        </div>
+        <div className="hidden sm:flex items-center bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-bold text-sm border border-brand-100 shadow-sm">
+          <Map className="w-4 h-4 mr-2 opacity-70" />
+          {plans.length} {plans.length === 1 ? 'Plan' : 'Plans'} Total
+        </div>
       </div>
 
       {plans.length === 0 && !loading ? (
