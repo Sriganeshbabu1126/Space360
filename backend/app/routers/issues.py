@@ -13,6 +13,8 @@ from fastapi import UploadFile, File
 from app.models import IssuePhoto
 from app.services.gcs_service import upload_private_file, get_signed_url
 from app.utils.email import send_issue_notification
+import time
+from app.services.issue_filter import IssueFilterQuery
 
 router = APIRouter()
 
@@ -99,6 +101,56 @@ def list_issues(
         query = query.filter(Issue.location_id == location_id)
         
     return query.order_by(Issue.created_at.desc()).all()
+
+
+@router.get("/search")
+async def search_issues(
+    statuses: Optional[str] = Query(None),
+    types: Optional[str] = Query(None),
+    sites: Optional[str] = Query(None),
+    contractors: Optional[str] = Query(None),
+    date_start: Optional[datetime.datetime] = None,
+    date_end: Optional[datetime.datetime] = None,
+    search_text: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_direction: str = "desc",
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Parse comma separated strings to lists
+    status_list = statuses.split(",") if statuses else None
+    type_list = types.split(",") if types else None
+    site_list = sites.split(",") if sites else None
+    contractor_list = contractors.split(",") if contractors else None
+
+    filter_query = IssueFilterQuery(
+        db_session=db,
+        statuses=status_list,
+        types=type_list,
+        sites=site_list,
+        contractors=contractor_list,
+        date_start=date_start,
+        date_end=date_end,
+        search_text=search_text,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
+        limit=limit,
+        offset=offset,
+        current_user=current_user.get("email")
+    )
+
+    start_time = time.time()
+    results, total = filter_query.execute()
+    query_time = (time.time() - start_time) * 1000
+
+    return {
+        "total": total,
+        "results": [IssueResponse.from_orm(r) for r in results],
+        "query_time_ms": int(query_time)
+    }
+
 
 @router.get("/{id}", response_model=IssueResponse)
 def get_issue(id: str, db: Session = Depends(get_db)):

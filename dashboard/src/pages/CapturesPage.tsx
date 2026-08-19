@@ -7,9 +7,11 @@ import { useSearchParams } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
 import CreateIssueModal from '../components/CreateIssueModal';
 import FrameTimelineViewer from '../components/FrameTimelineViewer';
+import { useSite } from '../context/SiteContext';
 
 const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { selectedSiteId } = useSite();
   const [searchParams] = useSearchParams();
   const locationParam = searchParams.get('location_id');
   const highlightParam = searchParams.get('highlight');
@@ -20,7 +22,7 @@ const CapturesPage: React.FC = () => {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCaptureForIssue, setSelectedCaptureForIssue] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [filterSiteId, setFilterSiteId] = useState<string>('');
+  const [filterSiteId, setFilterSiteId] = useState<string>(selectedSiteId || '');
   const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
   const [selectedFrameForIssue, setSelectedFrameForIssue] = useState<any>(null);
 
@@ -29,7 +31,7 @@ const CapturesPage: React.FC = () => {
   const [floorPlans, setFloorPlans] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   
-  const [selectedSiteId, setSelectedSiteId] = useState('');
+  const [modalSiteId, setModalSiteId] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   
@@ -99,23 +101,23 @@ const CapturesPage: React.FC = () => {
 
   const handleOpenModal = () => {
     setShowModal(true);
-    if (sites.length > 0 && !selectedSiteId) {
-      setSelectedSiteId(sites[0].id);
+    if (sites.length > 0 && !modalSiteId) {
+      setModalSiteId(sites[0].id);
     }
   };
 
   useEffect(() => {
-    if (!selectedSiteId) {
+    if (!modalSiteId) {
       setFloorPlans([]);
       setSelectedPlanId('');
       return;
     }
-    getFloorPlans(selectedSiteId).then(res => {
+    getFloorPlans(modalSiteId).then(res => {
       setFloorPlans(res.data);
       if (res.data.length > 0) setSelectedPlanId(res.data[0].id);
       else setSelectedPlanId('');
     }).catch(console.error);
-  }, [selectedSiteId]);
+  }, [modalSiteId]);
 
   useEffect(() => {
     if (!selectedPlanId) {
@@ -194,29 +196,38 @@ const CapturesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 relative">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800">Site Captures</h2>
-        <button onClick={handleOpenModal} className="btn-primary flex items-center shadow-md">
-          <Upload className="w-4 h-4 mr-2" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
+        <div className="flex flex-col w-full sm:w-1/2 md:w-1/3">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Site</label>
+          <div className="relative">
+            <select 
+              className="appearance-none w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold text-lg py-3 px-4 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer shadow-sm hover:bg-white"
+              value={filterSiteId || ''}
+              onChange={e => setFilterSiteId(e.target.value)}
+            >
+              <option value="">All Sites</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+        </div>
+        <button onClick={handleOpenModal} className="btn-primary flex items-center shadow-lg hover:shadow-xl py-3 px-6 w-full sm:w-auto justify-center rounded-xl font-bold text-base transition-all hover:-translate-y-0.5">
+          <Upload className="w-5 h-5 mr-2" />
           Upload Capture
         </button>
       </div>
 
-      <div className="card flex flex-wrap items-center gap-4 p-4 shadow-sm">
-        <div className="flex items-center text-gray-500 mr-2">
-          <Filter className="w-5 h-5 mr-2" />
-          <span className="font-medium">Filter By:</span>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Site Captures</h2>
+          <p className="text-gray-500 mt-1 font-medium">Browse 360° photos and video sequences for {filterSiteId ? sites.find(s => s.id === filterSiteId)?.name : 'all sites'}.</p>
         </div>
-        <select 
-          className="input max-w-xs flex-1 min-w-[150px]"
-          value={filterSiteId}
-          onChange={e => setFilterSiteId(e.target.value)}
-        >
-          <option value="">All Sites</option>
-          {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select className="input max-w-xs flex-1 min-w-[150px]"><option>All Dates</option></select>
-        <select className="input max-w-xs flex-1 min-w-[150px]"><option>Any AI Status</option></select>
+        <div className="hidden sm:flex items-center bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-bold text-sm border border-brand-100 shadow-sm">
+          <Camera className="w-4 h-4 mr-2 opacity-70" />
+          {captures.length} {captures.length === 1 ? 'Capture' : 'Captures'} Total
+        </div>
       </div>
 
       {captures.length === 0 && !loading ? (
@@ -309,7 +320,7 @@ const CapturesPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Site</label>
-                <select className="input w-full" value={selectedSiteId} onChange={e => setSelectedSiteId(e.target.value)}>
+                <select className="input w-full" value={modalSiteId} onChange={e => setModalSiteId(e.target.value)}>
                   {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>

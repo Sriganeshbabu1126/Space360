@@ -6,13 +6,14 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
-  getIssues, deleteIssue, updateIssue, getContractors, 
+  searchIssues, deleteIssue, updateIssue, getContractors, 
   assignContractorToIssue, unassignContractorFromIssue,
-  getIssueComments, addIssueComment, getIssue
+  getIssueComments, addIssueComment, getIssue, getSites
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSite } from '../context/SiteContext';
 import PhotoGallery, { IssuePhoto } from '../components/PhotoGallery';
+import AdvancedFilterPanel from '../components/AdvancedFilterPanel';
 
 interface Contractor {
   id: string;
@@ -72,16 +73,23 @@ const issueTypeLabels: Record<string, string> = {
 const IssuesPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
-  const { selectedSiteId } = useSite(); // Add this
+  const { selectedSiteId } = useSite(); 
   
   const [issues, setIssues] = useState<Issue[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalIssues, setTotalIssues] = useState(0);
   
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterType, setFilterType] = useState<string>('');
-  const [filterLocation, setFilterLocation] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState<any>({
+    search_text: '',
+    statuses: [],
+    types: [],
+    sites: selectedSiteId ? [selectedSiteId] : [],
+    contractors: [],
+    date_start: '',
+    date_end: ''
+  });
   
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [comments, setComments] = useState<IssueComment[]>([]);
@@ -91,31 +99,48 @@ const IssuesPage: React.FC = () => {
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
 
-  const fetchData = async () => {
+  const fetchDependencies = async () => {
     try {
-      setLoading(true);
-      // Wait for selectedSiteId if needed? If null, it just passes undefined
-      const [issuesRes, contractorsRes] = await Promise.all([
-        getIssues(filterStatus || undefined, undefined, selectedSiteId || undefined),
-        getContractors()
+      const [contractorsRes, sitesRes] = await Promise.all([
+        getContractors(),
+        getSites()
       ]);
-      setIssues(issuesRes.data);
       setContractors(contractorsRes.data);
+      setSites(sitesRes.data);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load data');
+    }
+  };
+
+  const fetchIssuesData = async (filters: any) => {
+    try {
+      setLoading(true);
+      const res = await searchIssues({ ...filters, limit: 100 });
+      setIssues(res.data.results || []);
+      setTotalIssues(res.data.total || 0);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load issues');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [filterStatus, selectedSiteId]);
+    fetchDependencies();
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [filterStatus]);
+    if (selectedSiteId) {
+       setActiveFilters((prev: any) => ({ ...prev, sites: [selectedSiteId] }));
+    } else {
+       setActiveFilters((prev: any) => ({ ...prev, sites: [] }));
+    }
+  }, [selectedSiteId]);
+
+  useEffect(() => {
+    fetchIssuesData(activeFilters);
+  }, [activeFilters]);
 
   const loadComments = async (issueId: string) => {
     try {
@@ -140,34 +165,8 @@ const IssuesPage: React.FC = () => {
     }
   };
 
-  // Extract unique locations from issues for the filter dropdown
-  const uniqueLocations = useMemo(() => {
-    const locs = issues
-      .filter(i => i.location_id && i.location_name)
-      .map(i => ({ id: i.location_id, name: i.location_name as string }));
-    
-    // Deduplicate by id
-    const unique = Array.from(new Map(locs.map(l => [l.id, l])).values());
-    return unique.sort((a, b) => a.name.localeCompare(b.name));
-  }, [issues]);
+  const filteredIssues = issues;
 
-  const filteredIssues = useMemo(() => {
-    let result = issues;
-    if (filterType) {
-      result = result.filter(i => i.issue_type === filterType);
-    }
-    if (filterLocation) {
-      result = result.filter(i => i.location_id === filterLocation);
-    }
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      result = result.filter(i => 
-        i.title.toLowerCase().includes(lower) || 
-        (i.description && i.description.toLowerCase().includes(lower))
-      );
-    }
-    return result;
-  }, [issues, searchTerm, filterType, filterLocation]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -175,7 +174,7 @@ const IssuesPage: React.FC = () => {
       try {
         await deleteIssue(id);
         toast.success('Issue deleted');
-        fetchData();
+        fetchIssuesData(activeFilters);
       } catch (error) {
         console.error(error);
         toast.error('Failed to delete issue');
@@ -187,7 +186,7 @@ const IssuesPage: React.FC = () => {
     try {
       await updateIssue(issueId, { status: newStatus });
       toast.success('Status updated');
-      fetchData();
+      fetchIssuesData(activeFilters);
       if (selectedIssue && selectedIssue.id === issueId) {
         setSelectedIssue({ ...selectedIssue, status: newStatus });
       }
@@ -201,7 +200,7 @@ const IssuesPage: React.FC = () => {
     try {
       await updateIssue(issueId, { issue_type: newType });
       toast.success('Issue type updated');
-      fetchData();
+      fetchIssuesData(activeFilters);
       if (selectedIssue && selectedIssue.id === issueId) {
         setSelectedIssue({ ...selectedIssue, issue_type: newType });
       }
@@ -216,7 +215,7 @@ const IssuesPage: React.FC = () => {
     try {
       await assignContractorToIssue(selectedIssue.id, contractorId);
       toast.success('Contractor assigned');
-      fetchData();
+      fetchIssuesData(activeFilters);
       const res = await getIssue(selectedIssue.id);
       setSelectedIssue(res.data);
     } catch (error) {
@@ -230,7 +229,7 @@ const IssuesPage: React.FC = () => {
     try {
       await unassignContractorFromIssue(selectedIssue.id, contractorId);
       toast.success('Contractor unassigned');
-      fetchData();
+      fetchIssuesData(activeFilters);
       // Optimistic update
       setSelectedIssue({
         ...selectedIssue, 
@@ -280,7 +279,7 @@ const IssuesPage: React.FC = () => {
       }
       toast.success(`${selectedIssueIds.length} issues updated`);
       setSelectedIssueIds([]);
-      fetchData();
+      fetchIssuesData(activeFilters);
     } catch (error) {
       console.error(error);
       toast.error('Failed to update some issues');
@@ -297,7 +296,7 @@ const IssuesPage: React.FC = () => {
       }
       toast.success(`${selectedIssueIds.length} issues reassigned`);
       setSelectedIssueIds([]);
-      fetchData();
+      fetchIssuesData(activeFilters);
     } catch (error) {
       console.error(error);
       toast.error('Failed to reassign some issues');
@@ -314,7 +313,7 @@ const IssuesPage: React.FC = () => {
         }
         toast.success(`${selectedIssueIds.length} issues deleted`);
         setSelectedIssueIds([]);
-        fetchData();
+        fetchIssuesData(activeFilters);
       } catch (error) {
         console.error(error);
         toast.error('Failed to delete some issues');
@@ -325,83 +324,26 @@ const IssuesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 shrink-0 space-y-4">
-        {/* Row 1: Header & Primary Action */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <AlertCircle className="w-6 h-6 mr-3 text-brand-600" />
-            Issues
-          </h2>
-          <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create Issue
-          </button>
-        </div>
-        
-        {/* Row 2: Search & Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-          {/* Search */}
-          <div className="relative flex-1 w-full sm:w-auto">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search issues..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            />
-          </div>
-          
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500 flex items-center">
-                <Filter className="w-4 h-4 mr-1" /> Status:
-              </span>
-              <select 
-                value={filterStatus} 
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="input py-1.5 text-sm w-full sm:w-32"
-              >
-                <option value="">All</option>
-                <option value="open">Open</option>
-                <option value="in_review">In Review</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500">Location:</span>
-              <select 
-                value={filterLocation} 
-                onChange={(e) => setFilterLocation(e.target.value)}
-                className="input py-1.5 text-sm w-full sm:w-40"
-              >
-                <option value="">All Locations</option>
-                {uniqueLocations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500">Type:</span>
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value)}
-                className="input py-1.5 text-sm w-full sm:w-40"
-              >
-                <option value="">All</option>
-                <option value="defect">Defect</option>
-                <option value="safety_issue">Safety Issue</option>
-                <option value="quality_issue">Quality Issue</option>
-                <option value="incomplete_work">Incomplete Work</option>
-                <option value="rework_required">Rework Required</option>
-              </select>
-            </div>
-          </div>
-        </div>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          <AlertCircle className="w-6 h-6 mr-3 text-brand-600" />
+          Issues
+          <span className="ml-3 text-sm bg-gray-200 text-gray-700 py-1 px-2.5 rounded-full font-medium">
+            {totalIssues} total
+          </span>
+        </h2>
+        <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+          <Plus className="w-4 h-4 mr-1.5" />
+          Create Issue
+        </button>
       </div>
+
+      <AdvancedFilterPanel 
+        sites={sites} 
+        contractors={contractors} 
+        currentFilters={activeFilters}
+        onFilterChange={(filters) => setActiveFilters(filters)} 
+      />
 
       {selectedIssueIds.length > 0 && (
         <div className="sticky top-0 bg-blue-50 border border-blue-200 p-3 sm:p-4 rounded-xl flex items-center justify-between z-20 shadow-sm animate-fade-in flex-wrap gap-3">

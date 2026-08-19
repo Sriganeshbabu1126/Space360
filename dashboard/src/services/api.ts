@@ -115,6 +115,21 @@ export const getIssues = (status?: string, locationId?: string, siteId?: string)
   const query = params.toString();
   return api.get(`/issues/${query ? `?${query}` : ''}`);
 };
+export const searchIssues = (params: any) => {
+  const qs = new URLSearchParams();
+  if (params.statuses?.length) qs.append('statuses', params.statuses.join(','));
+  if (params.types?.length) qs.append('types', params.types.join(','));
+  if (params.sites?.length) qs.append('sites', params.sites.join(','));
+  if (params.contractors?.length) qs.append('contractors', params.contractors.join(','));
+  if (params.date_start) qs.append('date_start', params.date_start);
+  if (params.date_end) qs.append('date_end', params.date_end);
+  if (params.search_text) qs.append('search_text', params.search_text);
+  if (params.sort_by) qs.append('sort_by', params.sort_by);
+  if (params.sort_direction) qs.append('sort_direction', params.sort_direction);
+  if (params.limit) qs.append('limit', params.limit);
+  if (params.offset) qs.append('offset', params.offset);
+  return api.get(`/issues/search?${qs.toString()}`);
+};
 export const createIssue = (data: any) => api.post('/issues/', data);
 export const getIssue = (id: string) => api.get(`/issues/${id}`);
 export const updateIssue = (id: string, data: any) => api.put(`/issues/${id}`, data);
