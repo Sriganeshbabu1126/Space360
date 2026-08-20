@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  AlertCircle, Plus, Search, Filter, Trash2, X, 
+  AlertCircle, Plus, Search, Filter, Trash2, X, Download,
   MapPin, CheckCircle2, Circle, Clock, MessageSquare, Users, Send, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
   searchIssues, deleteIssue, updateIssue, getContractors, 
   assignContractorToIssue, unassignContractorFromIssue,
-  getIssueComments, addIssueComment, getIssue, getSites
+  getIssueComments, addIssueComment, getIssue, getSites,
+  exportIssues, getExportJobStatus
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSite } from '../context/SiteContext';
@@ -343,6 +344,75 @@ const IssuesPage: React.FC = () => {
       }
     }
   };
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (format: string) => {
+    if (exporting) return;
+    setExporting(true);
+    const loadingToast = toast.loading('Starting export...');
+    try {
+      const response = await exportIssues(format, activeFilters);
+      
+      let data = response.data;
+      if (data instanceof Blob && data.type === 'application/json') {
+          const text = await data.text();
+          data = JSON.parse(text);
+      } else if (!(data instanceof Blob) && typeof data === 'string') {
+          try { data = JSON.parse(data); } catch(e){}
+      }
+
+      if (data.job_id) {
+         toast.dismiss(loadingToast);
+         toast.success('Large export in progress. You will be notified when ready.', { duration: 5000 });
+         
+         const pollId = setInterval(async () => {
+             try {
+                const statusData = await getExportJobStatus(data.job_id);
+                if (statusData.status === 'complete') {
+                   clearInterval(pollId);
+                   toast.success(
+                     (t) => (
+                       <span>
+                         Export ready! <a href={statusData.download_url} target="_blank" rel="noreferrer" className="underline font-bold text-brand-600 ml-2" onClick={() => toast.dismiss(t.id)}>Download</a>
+                       </span>
+                     ),
+                     { duration: 10000 }
+                   );
+                } else if (statusData.status === 'failed') {
+                   clearInterval(pollId);
+                   toast.error('Export failed.');
+                }
+             } catch (e) {
+             }
+         }, 5000);
+      } else {
+         toast.dismiss(loadingToast);
+         let blob = data;
+         if (!(data instanceof Blob)) {
+            blob = new Blob([data]);
+         }
+         let filename = `space360_issues.${format === 'excel' ? 'xlsx' : format}`;
+         const disposition = response.headers['content-disposition'];
+         if (disposition && disposition.includes('filename=')) {
+            filename = disposition.split('filename=')[1].replace(/"/g, '');
+         }
+         const url = window.URL.createObjectURL(blob);
+         const link = document.createElement('a');
+         link.href = url;
+         link.setAttribute('download', filename);
+         document.body.appendChild(link);
+         link.click();
+         link.remove();
+         window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(loadingToast);
+      toast.error('Failed to export issues');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -354,10 +424,23 @@ const IssuesPage: React.FC = () => {
             {totalIssues} total
           </span>
         </h2>
-        <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
-          <Plus className="w-4 h-4 mr-1.5" />
-          Create Issue
-        </button>
+        <div className="flex space-x-3">
+          <div className="relative group">
+            <button disabled={exporting} className="btn-secondary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+              <Download className="w-4 h-4 mr-1.5" />
+              {exporting ? 'Exporting...' : 'Export'}
+            </button>
+            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg border border-gray-100 hidden group-hover:block z-50 overflow-hidden">
+              <button onClick={() => handleExport('csv')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => handleExport('excel')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel</button>
+              <button onClick={() => handleExport('pdf')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+            </div>
+          </div>
+          <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Create Issue
+          </button>
+        </div>
       </div>
 
       <AdvancedFilterPanel 

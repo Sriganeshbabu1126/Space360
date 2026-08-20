@@ -15,6 +15,12 @@ from app.services.gcs_service import upload_private_file, get_signed_url
 from app.utils.email import send_issue_notification
 import time
 from app.services.issue_filter import IssueFilterQuery
+from fastapi.responses import StreamingResponse
+from app.services.export_service import generate_csv, generate_excel, generate_pdf
+from app.celery_app import celery_app
+from celery.result import AsyncResult
+from app.worker import generate_large_export_task
+import io
 
 router = APIRouter()
 
@@ -431,3 +437,91 @@ async def trigger_issue_notification(
         queued_count += 1
 
     return {"message": f"Notifications queued for {queued_count} contractors."}
+class ExportRequest(BaseModel):
+    format: str
+    filters: dict = {}
+
+@router.post("/export")
+def export_issues(
+    payload: ExportRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    format_type = payload.format.lower()
+    if format_type not in ["csv", "excel", "pdf"]:
+        raise HTTPException(status_code=400, detail="Unsupported format")
+        
+    filters = payload.filters
+    # Extract filter logic, similar to /search
+    status_list = filters.get("statuses").split(",") if filters.get("statuses") else None
+    type_list = filters.get("types").split(",") if filters.get("types") else None
+    site_list = filters.get("sites").split(",") if filters.get("sites") else None
+    contractor_list = filters.get("contractors").split(",") if filters.get("contractors") else None
+    
+    # We need to construct filter query to know the count
+    user_email = current_user.get("email")
+    is_admin = user_email == "wincadsg@gmail.com"
+    
+    filter_query = IssueFilterQuery(
+        db_session=db,
+        statuses=status_list,
+        types=type_list,
+        sites=site_list,
+        contractors=contractor_list,
+        search_text=filters.get("search_text"),
+        current_user=user_email,
+        limit=100000,
+        offset=0
+    )
+    
+    query = filter_query.build_query()
+    total = query.count()
+    
+    if total > 500:
+        # Kick off background job
+        safe_filters = {
+            "statuses": status_list,
+            "types": type_list,
+            "sites": site_list,
+            "contractors": contractor_list,
+            "search_text": filters.get("search_text")
+        }
+        task = generate_large_export_task.delay(format_type, is_admin, user_email, safe_filters)
+        return {"job_id": task.id, "status": "processing"}
+    else:
+        # Return directly
+        issues = query.all()
+        if format_type == "csv":
+            file_bytes = generate_csv(issues, is_admin)
+            media_type = "text/csv"
+            filename = f"space360_issues_{datetime.datetime.now().strftime('%Y-%m-%d')}.csv"
+        elif format_type == "excel":
+            file_bytes = generate_excel(issues, is_admin)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            filename = f"space360_issues_{datetime.datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        else: # pdf
+            file_bytes = generate_pdf(issues, is_admin)
+            media_type = "application/pdf"
+            filename = f"space360_issues_{datetime.datetime.now().strftime('%Y-%m-%d')}.pdf"
+            
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+
+@router.get("/export/{job_id}")
+def get_export_status(job_id: str):
+    res = AsyncResult(job_id, app=celery_app)
+    if res.state == 'PENDING' or res.state == 'STARTED':
+        return {"status": "processing"}
+    elif res.state == 'SUCCESS':
+        result_data = res.result
+        # Generate a signed URL for the destination path
+        signed_url = get_signed_url(result_data["destination_path"], expiration_hours=1)
+        return {
+            "status": "complete",
+            "download_url": signed_url
+        }
+    else:
+        return {"status": "failed", "error": str(res.result)}
