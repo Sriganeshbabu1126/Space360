@@ -22,7 +22,7 @@ const CapturesPage: React.FC = () => {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCaptureForIssue, setSelectedCaptureForIssue] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [filterSiteId, setFilterSiteId] = useState<string>(selectedSiteId || '');
+  const [filterSiteId, setFilterSiteId] = useState<string>('');
   const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
   const [selectedFrameForIssue, setSelectedFrameForIssue] = useState<any>(null);
 

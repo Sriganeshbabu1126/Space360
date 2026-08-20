@@ -50,6 +50,7 @@ interface Issue {
   frame_b?: any;
   created_by: string;
   created_at: string;
+  updated_at: string;
   assignments: IssueAssignment[];
   photos?: IssuePhoto[];
 }
@@ -90,6 +91,9 @@ const IssuesPage: React.FC = () => {
     date_start: '',
     date_end: ''
   });
+
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [comments, setComments] = useState<IssueComment[]>([]);
@@ -101,21 +105,21 @@ const IssuesPage: React.FC = () => {
 
   const fetchDependencies = async () => {
     try {
-      const [contractorsRes, sitesRes] = await Promise.all([
-        getContractors(),
-        getSites()
+      const [sitesRes, contractorsRes] = await Promise.all([
+        getSites(), getContractors()
       ]);
-      setContractors(contractorsRes.data);
       setSites(sitesRes.data);
+      setContractors(contractorsRes.data);
     } catch (error) {
       console.error(error);
+      toast.error('Failed to load dependencies');
     }
   };
 
-  const fetchIssuesData = async (filters: any) => {
+  const fetchIssuesData = async (filters: any, col: string = sortColumn, dir: string = sortDirection) => {
     try {
       setLoading(true);
-      const res = await searchIssues({ ...filters, limit: 100 });
+      const res = await searchIssues({ ...filters, limit: 100, sort_by: col, sort_direction: dir });
       setIssues(res.data.results || []);
       setTotalIssues(res.data.total || 0);
     } catch (error) {
@@ -139,8 +143,26 @@ const IssuesPage: React.FC = () => {
   }, [selectedSiteId]);
 
   useEffect(() => {
-    fetchIssuesData(activeFilters);
-  }, [activeFilters]);
+    fetchIssuesData(activeFilters, sortColumn, sortDirection);
+  }, [activeFilters, sortColumn, sortDirection]);
+
+  const handleSort = (column: string) => {
+    let newCol = sortColumn;
+    let newDir = sortDirection;
+    if (sortColumn === column) {
+      if (sortDirection === 'asc') {
+        newDir = 'desc';
+      } else if (sortDirection === 'desc') {
+        newCol = 'created_at';
+        newDir = 'desc';
+      }
+    } else {
+      newCol = column;
+      newDir = 'asc';
+    }
+    setSortColumn(newCol);
+    setSortDirection(newDir);
+  };
 
   const loadComments = async (issueId: string) => {
     try {
@@ -455,29 +477,41 @@ const IssuesPage: React.FC = () => {
                 );
               })}
             </div>
-
             {/* Desktop / Tablet Table View */}
             <div className="overflow-x-auto flex-1 hidden md:block">
               <table className="w-full text-left border-collapse whitespace-nowrap">
-                <thead className="sticky top-0 bg-gray-50 z-10">
-                  <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider">
-                    <th className="px-6 py-4 w-12">
-                      <input
-                        type="checkbox"
-                        checked={filteredIssues.length > 0 && selectedIssueIds.length === filteredIssues.length}
-                        onChange={handleSelectAll}
-                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                      />
-                    </th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold">Type</th>
-                    <th className="px-6 py-4 font-semibold">Title</th>
-                    <th className="px-6 py-4 font-semibold hidden lg:table-cell">Location / Description</th>
-                    <th className="px-6 py-4 font-semibold">Assigned To</th>
-                    <th className="px-6 py-4 font-semibold hidden lg:table-cell">Created Date</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
+                  <thead className="sticky top-0 bg-gray-50 z-10">
+                    <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider text-left">
+                      <th className="px-6 py-4 w-12">
+                        <input
+                          type="checkbox"
+                          checked={filteredIssues.length > 0 && selectedIssueIds.length === filteredIssues.length}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                        />
+                      </th>
+                      <th className="px-6 py-4 font-semibold cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
+                        Status {sortColumn === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold cursor-pointer hover:bg-gray-100" onClick={() => handleSort('issue_type')}>
+                        Priority {sortColumn === 'issue_type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold cursor-pointer hover:bg-gray-100" onClick={() => handleSort('title')}>
+                        Title {sortColumn === 'title' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold hidden lg:table-cell">Location / Description</th>
+                      <th className="px-6 py-4 font-semibold cursor-pointer hover:bg-gray-100" onClick={() => handleSort('assignee')}>
+                        Assignee {sortColumn === 'assignee' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold hidden lg:table-cell cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_at')}>
+                        Created Date {sortColumn === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold hidden xl:table-cell cursor-pointer hover:bg-gray-100" onClick={() => handleSort('updated_at')}>
+                        Updated Date {sortColumn === 'updated_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredIssues.map(issue => {
                     const conf = statusConfig[issue.status] || statusConfig.open;
