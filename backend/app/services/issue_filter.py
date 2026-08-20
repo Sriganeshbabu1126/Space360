@@ -97,12 +97,25 @@ class IssueFilterQuery:
                 issue_vector.op('@@')(search_query) | has_comment_match
             )
 
-        if self.sort_by == 'created_at':
-            direction = desc if self.sort_direction == 'desc' else asc
-            query = query.order_by(direction(Issue.created_at))
+        direction = desc if self.sort_direction.lower() == 'desc' else asc
+
+        if self.sort_by == 'title':
+            query = query.order_by(direction(Issue.title))
         elif self.sort_by == 'status':
-            direction = desc if self.sort_direction == 'desc' else asc
             query = query.order_by(direction(Issue.status))
+        elif self.sort_by in ('priority', 'issue_type', 'type'):
+            query = query.order_by(direction(Issue.issue_type))
+        elif self.sort_by == 'updated_at':
+            query = query.order_by(direction(Issue.updated_at))
+        elif self.sort_by == 'assignee':
+            first_assignee = self.db.query(func.min(Contractor.name)) \
+                .join(IssueAssignment, Contractor.id == IssueAssignment.contractor_id) \
+                .filter(IssueAssignment.issue_id == Issue.id) \
+                .correlate(Issue) \
+                .scalar_subquery()
+            query = query.order_by(direction(first_assignee))
+        else:
+            query = query.order_by(direction(Issue.created_at))
 
         return query
 

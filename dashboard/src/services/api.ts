@@ -125,7 +125,7 @@ export const searchIssues = (params: any) => {
   if (params.date_end) qs.append('date_end', params.date_end);
   if (params.search_text) qs.append('search_text', params.search_text);
   if (params.sort_by) qs.append('sort_by', params.sort_by);
-  if (params.sort_direction) qs.append('sort_direction', params.sort_direction);
+  if (params.sort_dir) qs.append('sort_dir', params.sort_dir);
   if (params.limit) qs.append('limit', params.limit);
   if (params.offset) qs.append('offset', params.offset);
   return api.get(`/issues/search?${qs.toString()}`);

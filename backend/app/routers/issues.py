@@ -113,7 +113,7 @@ async def search_issues(
     date_end: Optional[datetime.datetime] = None,
     search_text: Optional[str] = None,
     sort_by: str = "created_at",
-    sort_direction: str = "desc",
+    sort_dir: str = "desc",
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user),
@@ -135,7 +135,7 @@ async def search_issues(
         date_end=date_end,
         search_text=search_text,
         sort_by=sort_by,
-        sort_direction=sort_direction,
+        sort_direction=sort_dir,
         limit=limit,
         offset=offset,
         current_user=current_user.get("email")
