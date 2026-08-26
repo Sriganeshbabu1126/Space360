@@ -12,7 +12,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.sgbdevapps.space360"
+        applicationId = "com.space360.mobile"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
