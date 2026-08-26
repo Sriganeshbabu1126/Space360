@@ -23,6 +23,34 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Create mock google-services.json
+      run: |
+        cat << 'EOF' > app/google-services.json
+        {
+          "project_info": {
+            "project_number": "123456789012",
+            "project_id": "field-check-72967",
+            "storage_bucket": "field-check-72967.appspot.com"
+          },
+          "client": [
+            {
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+                "android_client_info": {
+                  "package_name": "com.sgbdevapps.space360"
+                }
+              },
+              "api_key": [
+                {
+                  "current_key": "AIzaSyDummyKeyForMockingFirebase1234"
+                }
+              ]
+            }
+          ],
+          "configuration_version": "1"
+        }
+        EOF
+
     - name: Run Unit Tests
       run: ./gradlew test --no-configuration-cache
 
