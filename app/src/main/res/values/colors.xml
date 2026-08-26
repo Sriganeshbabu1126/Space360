@@ -1,0 +1,13 @@
+<resources>
+    <color name="primary_teal">#1D9E75</color>
+    <color name="primary_dark">#155E3F</color>
+    <color name="secondary_light">#A8D8D8</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_light">#F5F5F5</color>
+    <color name="gray_medium">#CCCCCC</color>
+    <color name="gray_dark">#333333</color>
+    <color name="error">#D32F2F</color>
+    <color name="success">#388E3C</color>
+    <color name="warning">#F57C00</color>
+</resources>
