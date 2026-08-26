@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Space360" parent="android:Theme.Material.Light">
+        <item name="android:colorPrimary">@color/primary_teal</item>
+        <item name="android:colorPrimaryDark">@color/primary_dark</item>
+        <item name="android:colorAccent">@color/primary_teal</item>
+    </style>
+</resources>
