@@ -5,12 +5,7 @@ import os
 import json
 import logging
 from datetime import datetime
-
-try:
-    import exiftool
-except ImportError:
-    exiftool = None
-
+import subprocess
 logger = logging.getLogger("insta360.metadata")
 
 class MetadataExtractor:
@@ -24,6 +19,9 @@ class MetadataExtractor:
         Run full metadata extraction on a single .insv file.
         """
         logger.info(f"Starting metadata extraction for {filepath}")
+        os.makedirs(r"F:\Space360\modules\insta360\logs", exist_ok=True)
+        with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().isoformat()}] Starting extract for {filepath}\n")
         result = {
             "filepath": filepath,
             "sidecar_path": None,
@@ -86,28 +84,38 @@ class MetadataExtractor:
             result["errors"].append(f"Failed to read file size: {e}")
             return result
         
-        # 2. Extract with exiftool
-        raw_exiftool, et_status, et_error = self._extract_exiftool(filepath)
-        if et_error:
-            result["errors"].append(f"Exiftool extraction failed: {et_error}")
-            if et_status == "failed":
-                return result
+        try:
+            # 2. Extract with exiftool
+            raw_exiftool, et_status, et_error = self._extract_exiftool(filepath)
+            if et_error:
+                result["errors"].append(f"Exiftool extraction failed: {et_error}")
+                if et_status == "failed":
+                    return result
+                    
+            result["raw_exiftool"] = raw_exiftool
+            
+            # 3. Extract with SDK (stub)
+            raw_sdk = self._extract_sdk(filepath)
+            
+            # 4. Normalise
+            self._normalise(result, raw_exiftool, raw_sdk)
+            
+            # Determine overall status
+            if not result["errors"] and not result["warnings"]:
+                result["extraction_status"] = "success"
+            elif result["errors"]:
+                result["extraction_status"] = "failed"
+            else:
+                result["extraction_status"] = "partial"
                 
-        result["raw_exiftool"] = raw_exiftool
-        
-        # 3. Extract with SDK (stub)
-        raw_sdk = self._extract_sdk(filepath)
-        
-        # 4. Normalise
-        self._normalise(result, raw_exiftool, raw_sdk)
-        
-        # Determine overall status
-        if not result["errors"] and not result["warnings"]:
-            result["extraction_status"] = "success"
-        elif result["errors"]:
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] Exception in extract:\n{tb}\n")
+            logger.error(f"Unexpected error in extract() for {filepath}: {e}\n{tb}")
+            result["errors"].append(f"Unexpected exception: {str(e)} | Traceback: {tb}")
             result["extraction_status"] = "failed"
-        else:
-            result["extraction_status"] = "partial"
             
         # 5. Write sidecar JSON
         base = os.path.splitext(filepath)[0]
@@ -126,26 +134,81 @@ class MetadataExtractor:
             result["errors"].append(f"Failed to write sidecar: {e}")
             result["extraction_status"] = "failed"
             
+        with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().isoformat()}] Extract complete for {filepath}, status: {result['extraction_status']}\n")
+            
         return result
 
     def _extract_exiftool(self, filepath: str) -> tuple[dict, str, str]:
         """
-        Use pyexiftool to extract metadata.
+        Use subprocess to extract metadata via exiftool.
         """
-        if exiftool is None:
-            return {}, "failed", "pyexiftool not installed"
-            
+        debug_log = r"F:\Space360\modules\insta360\logs\metadata_debug.log"
+        
         try:
-            with exiftool.ExifToolHelper() as et:
-                metadata = et.get_metadata(filepath)
-                if metadata and len(metadata) > 0:
-                    return metadata[0], "success", None
-                return {}, "failed", "No metadata extracted"
-        except FileNotFoundError:
-            return {}, "failed", "exiftool executable not found on PATH"
+            # Log the call
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] Calling exiftool on {filepath}\n")
+                f.flush()
+            
+            # Run exiftool
+            result = subprocess.run(
+                [r"F:\exiftool\exiftool.exe", "-json", filepath],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            # Log success immediately
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] Exiftool returned with code {result.returncode}\n")
+                f.flush()
+            
+            if result.returncode != 0:
+                error_msg = f"exiftool exited with code {result.returncode}: {result.stderr}"
+                with open(debug_log, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().isoformat()}] ERROR: {error_msg}\n")
+                    f.flush()
+                return {}, "failed", error_msg
+            
+            # Parse JSON
+            data = json.loads(result.stdout)
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] JSON parsed successfully, {len(data)} objects\n")
+                f.flush()
+            
+            if data:
+                return data[0], "success", ""
+            else:
+                return {}, "failed", "JSON data is empty"
+            
+        except FileNotFoundError as e:
+            msg = f"exiftool executable not found on PATH: {e}"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] ERROR FileNotFoundError: {msg}\n")
+                f.flush()
+            return {}, "failed", msg
+            
+        except subprocess.TimeoutExpired as e:
+            msg = f"exiftool timed out after 10 seconds"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] ERROR TimeoutExpired: {msg}\n")
+                f.flush()
+            return {}, "failed", msg
+            
+        except json.JSONDecodeError as e:
+            msg = f"Failed to parse exiftool JSON output: {e}"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] ERROR JSONDecodeError: {msg}\n")
+                f.flush()
+            return {}, "failed", msg
+            
         except Exception as e:
-            logger.error(f"Error running exiftool on {filepath}: {e}")
-            return {}, "failed", str(e)
+            msg = f"Unexpected exception: {type(e).__name__}: {e}"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] ERROR {type(e).__name__}: {msg}\n")
+                f.flush()
+            return {}, "failed", msg
 
     def _extract_sdk(self, filepath: str) -> dict:
         """
@@ -318,6 +381,7 @@ class MetadataExtractor:
             elif st == "partial":
                 result["partial"] += 1
             else:
+                logger.error(f"Metadata extraction failed for file: {fp} with errors: {res.get('errors', [])}")
                 result["failed"] += 1
                 
         return result

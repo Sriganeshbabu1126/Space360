@@ -7,6 +7,7 @@ import logging
 import time
 import subprocess
 import shutil
+from datetime import datetime
 
 logger = logging.getLogger("insta360.stitcher")
 
@@ -54,9 +55,7 @@ class VideoStitcher:
         if duration:
             result["duration_seconds"] = duration
 
-        start_time = time.time()
-        success, stderr = self._run_ffmpeg(src_insv, dst_mp4, codec_info)
-        stitch_duration = time.time() - start_time
+        success, stderr, stitch_duration = self._run_ffmpeg(src_insv, dst_mp4, codec_info)
         
         result["stitch"]["stitch_duration_seconds"] = stitch_duration
 
@@ -84,26 +83,36 @@ class VideoStitcher:
         return results
 
     def _detect_codec(self) -> dict:
-        def check_encoder(encoder: str) -> bool:
+        ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
+        debug_log = r"F:\Space360\modules\insta360\logs\stitcher_debug.log"
+        
+        codecs_to_try = ["libx265", "libx264"]
+        
+        for codec in codecs_to_try:
             try:
                 result = subprocess.run(
-                    ["ffmpeg", "-h", f"encoder={encoder}"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
+                    [ffmpeg_path, "-h", "encoder=" + codec],
+                    capture_output=True,
+                    timeout=5
                 )
-                return result.returncode == 0
-            except FileNotFoundError:
-                return False
-
-        if check_encoder("hevc_nvenc"):
-            return {"codec": "hevc_nvenc", "method": "nvenc", "reason": "NVIDIA NVENC H.265 supported"}
-        elif check_encoder("h264_nvenc"):
-            return {"codec": "h264_nvenc", "method": "nvenc", "reason": "NVIDIA NVENC H.264 supported"}
-        elif check_encoder("libx265"):
-            return {"codec": "libx265", "method": "software", "reason": "libx265 software fallback"}
-        else:
-            return {"codec": "libx264", "method": "software", "reason": "libx264 software fallback (default)"}
+                if result.returncode == 0:
+                    method = "nvenc" if "nvenc" in codec else "software"
+                    with open(debug_log, "a", encoding="utf-8") as f:
+                        f.write(f"[{datetime.now().isoformat()}] Selected codec: {codec} ({method})\n")
+                    return {
+                        "codec": codec,
+                        "method": method,
+                        "reason": f"{codec} available"
+                    }
+            except:
+                continue
+        
+        # Fallback to libx264
+        return {
+            "codec": "libx264",
+            "method": "software",
+            "reason": "Fallback to H.264 software encoder"
+        }
 
     def _get_duration(self, filepath: str) -> float:
         try:
@@ -113,19 +122,59 @@ class VideoStitcher:
         except Exception:
             return None
 
-    def _run_ffmpeg(self, src: str, dst: str, codec_info: dict) -> tuple[bool, str]:
+    def _run_ffmpeg(self, src: str, dst: str, codec_info: dict) -> tuple[bool, str, float]:
+        """Run ffmpeg with timeout protection"""
+        ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
+        debug_log = r"F:\Space360\modules\insta360\logs\stitcher_debug.log"
+        
+        # Build command
+        cmd = [
+            ffmpeg_path, "-y",
+            "-i", src,
+            "-vcodec", codec_info["codec"],
+            "-acodec", "copy",
+            dst
+        ]
+        
+        with open(debug_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().isoformat()}] Starting ffmpeg (timeout: 600s)\n")
+            f.write(f"  Command: {' '.join(cmd)}\n")
+        
+        start_time = time.time()
+        
         try:
-            import ffmpeg
-            stream = ffmpeg.input(src)
-            stream = ffmpeg.output(stream, dst, vcodec=codec_info["codec"], acodec="copy")
-            out, err = ffmpeg.run(stream, capture_stdout=True, capture_stderr=True, overwrite_output=True)
-            return True, ""
-        except ImportError:
-            return False, "ffmpeg-python not installed"
-        except ffmpeg.Error as e:
-            return False, e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minute timeout
+            )
+            
+            duration = time.time() - start_time
+            
+            if result.returncode == 0:
+                with open(debug_log, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().isoformat()}] ffmpeg succeeded in {duration:.1f}s\n")
+                return True, "", duration
+            else:
+                error_msg = f"ffmpeg failed with code {result.returncode}: {result.stderr[-500:]}"
+                with open(debug_log, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().isoformat()}] ffmpeg failed: {error_msg}\n")
+                return False, error_msg, duration
+        
+        except subprocess.TimeoutExpired:
+            duration = time.time() - start_time
+            error_msg = f"Stitching timeout after {duration:.0f}s (10min limit). Codec too slow for this system."
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] TIMEOUT: {error_msg}\n")
+            return False, error_msg, duration
+        
         except Exception as e:
-            return False, str(e)
+            duration = time.time() - start_time
+            error_msg = f"Unexpected error: {type(e).__name__}: {e}"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] ERROR: {error_msg}\n")
+            return False, error_msg, duration
 
     def _update_sidecar(self, sidecar_path: str, stitch_result: dict) -> None:
         try:
