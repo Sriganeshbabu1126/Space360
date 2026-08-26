@@ -11,8 +11,8 @@ def test_detect_codec_hevc(mock_run):
     mock_run.return_value.returncode = 0
     stitcher = VideoStitcher()
     res = stitcher._detect_codec()
-    assert res["codec"] == "hevc_nvenc"
-    assert res["method"] == "nvenc"
+    assert res["codec"] == "libx265"
+    assert res["method"] == "software"
     
 @patch("core.stitcher.subprocess.run")
 def test_detect_codec_h264_fallback(mock_run):
@@ -21,17 +21,17 @@ def test_detect_codec_h264_fallback(mock_run):
             def __init__(self, code):
                 self.returncode = code
         cmd_str = " ".join(cmd)
-        if "hevc_nvenc" in cmd_str:
+        if "libx265" in cmd_str:
             return Result(1)
-        if "h264_nvenc" in cmd_str:
+        if "libx264" in cmd_str:
             return Result(0)
         return Result(1)
     mock_run.side_effect = side_effect
     
     stitcher = VideoStitcher()
     res = stitcher._detect_codec()
-    assert res["codec"] == "h264_nvenc"
-    assert res["method"] == "nvenc"
+    assert res["codec"] == "libx264"
+    assert res["method"] == "software"
 
 @patch("core.stitcher.VideoStitcher._get_duration")
 @patch("core.stitcher.VideoStitcher._run_ffmpeg")
@@ -44,7 +44,7 @@ def test_stitch_success(mock_makedirs, mock_exists, mock_getsize, mock_update_si
     mock_exists.return_value = True
     mock_getsize.return_value = 12345
     mock_detect.return_value = {"codec": "hevc_nvenc", "method": "nvenc", "reason": "ok"}
-    mock_run.return_value = (True, "")
+    mock_run.return_value = (True, "", 1.2)
     mock_duration.return_value = 10.5
     
     stitcher = VideoStitcher()
@@ -69,7 +69,7 @@ def test_stitch_ffmpeg_failure(mock_makedirs, mock_exists, mock_detect, mock_run
     mock_exists.side_effect = exists_side_effect
     
     mock_detect.return_value = {"codec": "hevc_nvenc", "method": "nvenc", "reason": "ok"}
-    mock_run.return_value = (False, "ffmpeg crash")
+    mock_run.return_value = (False, "ffmpeg crash", 1.2)
     mock_duration.return_value = 10.5
     
     stitcher = VideoStitcher()
@@ -119,3 +119,35 @@ def test_stitch_batch(mock_stitch):
     assert len(res) == 2
     assert res[0]["success"] is True
     assert res[1]["success"] is False
+
+@patch("core.stitcher.subprocess.run")
+def test_detect_codec_first_works(mock_run):
+    def side_effect(cmd, **kwargs):
+        class Result:
+            def __init__(self, code):
+                self.returncode = code
+        cmd_str = " ".join(cmd)
+        if "libx265" in cmd_str:
+            return Result(1)
+        if "libx264" in cmd_str:
+            return Result(0)
+        return Result(1)
+    mock_run.side_effect = side_effect
+    
+    stitcher = VideoStitcher()
+    res = stitcher._detect_codec()
+    
+    assert res["codec"] == "libx264"
+    assert res["method"] == "software"
+
+@patch("core.stitcher.subprocess.run")
+def test_run_ffmpeg_timeout(mock_run):
+    import subprocess
+    mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffmpeg", timeout=600)
+    
+    stitcher = VideoStitcher()
+    success, err, duration = stitcher._run_ffmpeg("in.insv", "out.mp4", {"codec": "libx264", "method": "software"})
+    
+    assert success is False
+    assert "timeout after" in err
+    assert duration >= 0

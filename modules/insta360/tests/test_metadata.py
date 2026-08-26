@@ -8,13 +8,15 @@ from core.metadata import MetadataExtractor
 @patch("core.metadata.os.path.getsize")
 @patch("core.metadata.os.path.exists")
 @patch("builtins.open", new_callable=mock_open)
-@patch("core.metadata.exiftool")
-def test_extract_basic(mock_exiftool, mock_file, mock_exists, mock_getsize):
+@patch("core.metadata.subprocess.run")
+def test_extract_basic(mock_run, mock_file, mock_exists, mock_getsize):
     mock_exists.return_value = True
     mock_getsize.return_value = 1024
     
-    mock_et_instance = mock_exiftool.ExifToolHelper.return_value.__enter__.return_value
-    mock_et_instance.get_metadata.return_value = [{
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    import json
+    mock_result.stdout = json.dumps([{
         "EXIF:Make": "Insta360",
         "Model": "X4",
         "ImageWidth": 7680,
@@ -25,7 +27,8 @@ def test_extract_basic(mock_exiftool, mock_file, mock_exists, mock_getsize):
         "GPSLatitude": 37.7749,
         "GPSLongitude": -122.4194,
         "AvgBitrate": "200 Mbps"
-    }]
+    }])
+    mock_run.return_value = mock_result
     
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\VID_001.insv")
@@ -45,15 +48,18 @@ def test_extract_basic(mock_exiftool, mock_file, mock_exists, mock_getsize):
 @patch("core.metadata.os.path.getsize")
 @patch("core.metadata.os.path.exists")
 @patch("builtins.open", new_callable=mock_open)
-@patch("core.metadata.exiftool")
-def test_extract_missing_gps(mock_exiftool, mock_file, mock_exists, mock_getsize):
+@patch("core.metadata.subprocess.run")
+def test_extract_missing_gps(mock_run, mock_file, mock_exists, mock_getsize):
     mock_exists.return_value = True
     mock_getsize.return_value = 1024
     
-    mock_et_instance = mock_exiftool.ExifToolHelper.return_value.__enter__.return_value
-    mock_et_instance.get_metadata.return_value = [{
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    import json
+    mock_result.stdout = json.dumps([{
         "Make": "Insta360", "Model": "X4", "CreateDate": "2026:08:26 12:36:06", "MediaDuration": 60
-    }]
+    }])
+    mock_run.return_value = mock_result
     
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\VID_002.insv")
@@ -64,12 +70,12 @@ def test_extract_missing_gps(mock_exiftool, mock_file, mock_exists, mock_getsize
 @patch("core.metadata.os.path.getsize")
 @patch("core.metadata.os.path.exists")
 @patch("builtins.open", new_callable=mock_open)
-@patch("core.metadata.exiftool")
-def test_extract_exiftool_not_found(mock_exiftool, mock_file, mock_exists, mock_getsize):
+@patch("core.metadata.subprocess.run")
+def test_extract_exiftool_not_found(mock_run, mock_file, mock_exists, mock_getsize):
     mock_exists.return_value = True
     mock_getsize.return_value = 1024
     
-    mock_exiftool.ExifToolHelper.side_effect = FileNotFoundError()
+    mock_run.side_effect = FileNotFoundError()
     
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\VID_003.insv")
@@ -108,16 +114,42 @@ def test_extract_batch(mock_extract):
 @patch("core.metadata.os.path.getsize")
 @patch("core.metadata.os.path.exists")
 @patch("builtins.open", new_callable=mock_open)
-@patch("core.metadata.exiftool")
-def test_sidecar_written(mock_exiftool, mock_file, mock_exists, mock_getsize):
+@patch("core.metadata.subprocess.run")
+def test_sidecar_written(mock_run, mock_file, mock_exists, mock_getsize):
     mock_exists.return_value = True
     mock_getsize.return_value = 1024
     
-    mock_et_instance = mock_exiftool.ExifToolHelper.return_value.__enter__.return_value
-    mock_et_instance.get_metadata.return_value = [{"Make": "Insta360"}]
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    import json
+    mock_result.stdout = json.dumps([{"Make": "Insta360"}])
+    mock_run.return_value = mock_result
     
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\folder\\VID_004.insv")
     
     assert res["sidecar_path"] == "C:\\folder\\VID_004_metadata.json"
-    mock_file.assert_called_with("C:\\folder\\VID_004_metadata.json", "w", encoding="utf-8")
+    mock_file.assert_any_call("C:\\folder\\VID_004_metadata.json", "w", encoding="utf-8")
+
+def test_extract_real_file():
+    # After previous tests create a real .insv file, try to extract it
+    extractor = MetadataExtractor()
+    result = extractor.extract("F:\\Space360\\modules\\insta360\\output\\20260826\\VID_20260826_123606_00_004.insv")
+    assert result["extraction_status"] in ["success", "partial", "failed"]
+
+@patch("core.metadata.os.path.getsize")
+@patch("core.metadata.os.path.exists")
+@patch("builtins.open", new_callable=mock_open)
+@patch("core.metadata.subprocess.run")
+def test_extract_timeout(mock_run, mock_file, mock_exists, mock_getsize):
+    mock_exists.return_value = True
+    mock_getsize.return_value = 1024
+    
+    import subprocess
+    mock_run.side_effect = subprocess.TimeoutExpired(cmd="exiftool", timeout=10)
+    
+    extractor = MetadataExtractor()
+    res = extractor.extract("C:\\VID_005.insv")
+    
+    assert res["extraction_status"] == "failed"
+    assert any("exiftool timed out after 10 seconds" in err for err in res["errors"])

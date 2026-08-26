@@ -13,7 +13,11 @@ START_TIME = time.time()
 
 @router.get("/health")
 def health_check():
-    ffmpeg_available = shutil.which("ffmpeg") is not None
+    from core.stitcher import VideoStitcher
+    
+    stitcher = VideoStitcher()
+    codec_info = stitcher._detect_codec()
+    
     gcs_connected = False
     try:
         from core.uploader import GCSUploader
@@ -28,8 +32,11 @@ def health_check():
     
     return {
         "status": "ok",
-        "version": os.getenv("MODULE_VERSION", "1.0.0"),
-        "ffmpeg_available": ffmpeg_available,
+        "version": "1.0.0",
+        "ffmpeg_available": codec_info["codec"] is not None,
+        "available_codec": codec_info["codec"],
+        "encode_method": codec_info["method"],
+        "codec_reason": codec_info["reason"],
         "gcs_connected": gcs_connected,
         "active_jobs": active_jobs,
         "uptime_seconds": time.time() - START_TIME
