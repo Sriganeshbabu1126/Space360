@@ -37,7 +37,7 @@ jobs:
               "client_info": {
                 "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
                 "android_client_info": {
-                  "package_name": "com.sgbdevapps.space360"
+                  "package_name": "com.space360.mobile"
                 }
               },
               "api_key": [
