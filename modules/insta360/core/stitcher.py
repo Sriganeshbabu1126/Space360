@@ -44,7 +44,8 @@ class VideoStitcher:
         dst_mp4 = os.path.join(out_dir, f"{base}_stitched.mp4")
         result["dst"] = dst_mp4
 
-        codec_info = self._detect_codec()
+        file_size_bytes = os.path.getsize(src_insv)
+        codec_info = self._detect_codec(file_size_bytes)
         result["codec_info"] = codec_info
         result["stitch"]["codec"] = codec_info["codec"]
         result["stitch"]["encode_method"] = codec_info["method"]
@@ -82,9 +83,19 @@ class VideoStitcher:
             results.append(res)
         return results
 
-    def _detect_codec(self) -> dict:
+    def _detect_codec(self, file_size_bytes: int) -> dict:
         ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
         debug_log = r"F:\Space360\modules\insta360\logs\stitcher_debug.log"
+        
+        # Large files (>200MB) -> use fast libx264
+        if file_size_bytes > 200 * 1024 * 1024:
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] Large file ({file_size_bytes} bytes): using libx264 for speed\n")
+            return {
+                "codec": "libx264",
+                "method": "software",
+                "reason": "Large file (>200MB): using H.264 for speed"
+            }
         
         codecs_to_try = ["libx265", "libx264"]
         
