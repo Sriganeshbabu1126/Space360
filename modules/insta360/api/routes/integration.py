@@ -16,7 +16,7 @@ def health_check():
     from core.stitcher import VideoStitcher
     
     stitcher = VideoStitcher()
-    codec_info = stitcher._detect_codec()
+    codec_info = stitcher._detect_codec(0)
     
     gcs_connected = False
     try:

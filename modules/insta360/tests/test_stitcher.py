@@ -10,7 +10,7 @@ from core.stitcher import VideoStitcher
 def test_detect_codec_hevc(mock_run):
     mock_run.return_value.returncode = 0
     stitcher = VideoStitcher()
-    res = stitcher._detect_codec()
+    res = stitcher._detect_codec(0)
     assert res["codec"] == "libx265"
     assert res["method"] == "software"
     
@@ -29,7 +29,7 @@ def test_detect_codec_h264_fallback(mock_run):
     mock_run.side_effect = side_effect
     
     stitcher = VideoStitcher()
-    res = stitcher._detect_codec()
+    res = stitcher._detect_codec(0)
     assert res["codec"] == "libx264"
     assert res["method"] == "software"
 
@@ -61,12 +61,14 @@ def test_stitch_success(mock_makedirs, mock_exists, mock_getsize, mock_update_si
 @patch("core.stitcher.VideoStitcher._get_duration")
 @patch("core.stitcher.VideoStitcher._run_ffmpeg")
 @patch("core.stitcher.VideoStitcher._detect_codec")
+@patch("os.path.getsize")
 @patch("os.path.exists")
 @patch("os.makedirs")
-def test_stitch_ffmpeg_failure(mock_makedirs, mock_exists, mock_detect, mock_run, mock_duration):
+def test_stitch_ffmpeg_failure(mock_makedirs, mock_exists, mock_getsize, mock_detect, mock_run, mock_duration):
     def exists_side_effect(path):
         return path == "C:\\vid.insv"
     mock_exists.side_effect = exists_side_effect
+    mock_getsize.return_value = 12345
     
     mock_detect.return_value = {"codec": "hevc_nvenc", "method": "nvenc", "reason": "ok"}
     mock_run.return_value = (False, "ffmpeg crash", 1.2)
@@ -135,10 +137,16 @@ def test_detect_codec_first_works(mock_run):
     mock_run.side_effect = side_effect
     
     stitcher = VideoStitcher()
-    res = stitcher._detect_codec()
+    res = stitcher._detect_codec(0)
     
     assert res["codec"] == "libx264"
     assert res["method"] == "software"
+
+def test_detect_codec_large_file():
+    stitcher = VideoStitcher()
+    res = stitcher._detect_codec(300 * 1024 * 1024)  # 300MB
+    assert res["codec"] == "libx264"
+    assert res["reason"] == "Large file (>200MB): using H.264 for speed"
 
 @patch("core.stitcher.subprocess.run")
 def test_run_ffmpeg_timeout(mock_run):
