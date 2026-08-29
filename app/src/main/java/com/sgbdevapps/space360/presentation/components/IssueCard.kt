@@ -12,7 +12,11 @@ import androidx.compose.ui.unit.sp
 import com.sgbdevapps.space360.domain.model.Issue
 
 @Composable
-fun IssueCard(issue: Issue, onClick: () -> Unit) {
+fun IssueCard(
+    issue: Issue,
+    onRetrySync: () -> Unit = {},
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -20,7 +24,18 @@ fun IssueCard(issue: Issue, onClick: () -> Unit) {
             .clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = issue.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = issue.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                if (issue.syncStatus != null) {
+                    IssueSyncStatusBadge(
+                        syncStatus = issue.syncStatus,
+                        onRetry = onRetrySync
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
                 StatusBadge(issue.status)

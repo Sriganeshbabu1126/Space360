@@ -1,11 +1,16 @@
 package com.sgbdevapps.space360.data.repository
 
 import android.util.Log
+import com.sgbdevapps.space360.data.local.CacheMetadataEntity
 import com.sgbdevapps.space360.data.local.IssueCommentDao
 import com.sgbdevapps.space360.data.local.IssueCommentEntity
 import com.sgbdevapps.space360.data.local.IssueDao
 import com.sgbdevapps.space360.data.local.IssueEntity
 import com.sgbdevapps.space360.data.local.IssuePhotoDao
+import com.sgbdevapps.space360.data.local.IssuePhotoEntity
+import com.sgbdevapps.space360.data.local.Space360Database
+import com.sgbdevapps.space360.data.local.SyncQueueEntity
+import com.sgbdevapps.space360.data.network.NetworkConnectivityManager
 import com.sgbdevapps.space360.data.remote.AddCommentRequest
 import com.sgbdevapps.space360.data.remote.IssuesService
 import com.sgbdevapps.space360.data.remote.UpdateIssueStatusRequest
@@ -13,93 +18,370 @@ import com.sgbdevapps.space360.domain.model.Issue
 import com.sgbdevapps.space360.domain.model.IssueComment
 import com.sgbdevapps.space360.domain.model.IssuePhoto
 import com.sgbdevapps.space360.domain.repository.IssueRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class IssueRepositoryImpl @Inject constructor(
     private val issuesService: IssuesService,
-    private val issueDao: IssueDao,
-    private val commentDao: IssueCommentDao,
-    private val photoDao: IssuePhotoDao
+    private val database: Space360Database,
+    private val networkConnectivity: NetworkConnectivityManager
 ) : IssueRepository {
 
-    override suspend fun getIssuesBySite(siteId: Int): Result<List<Issue>> {
+    private val issueDao = database.issueDao()
+    private val commentDao = database.issueCommentDao()
+    private val photoDao = database.issuePhotoDao()
+    private val syncQueueDao = database.syncQueueDao()
+    private val cacheMetadataDao = database.cacheMetadataDao()
+
+    companion object {
+        private const val CACHE_TTL_ISSUES_MS = 24 * 60 * 60 * 1000L // 24 hours
+    }
+
+    override suspend fun getIssuesBySite(siteId: Int, forceRefresh: Boolean): Result<List<Issue>> {
         return try {
-            val response = issuesService.getIssuesBySite(siteId)
-            val issues = response.map { mapResponseToIssue(it) }
+            val cacheKey = "issues:site:$siteId"
+            val now = System.currentTimeMillis()
+            
+            val cachedMetadata = cacheMetadataDao.getMetadata(cacheKey)
+            val cacheIsValid = cachedMetadata?.expiresAt?.let { it > now } ?: false
 
-            // Cache locally
-            issueDao.insertIssues(issues.map { issue ->
-                IssueEntity(
-                    id = issue.id,
-                    title = issue.title,
-                    description = issue.description,
-                    siteId = issue.siteId,
-                    status = issue.status,
-                    priority = issue.priority,
-                    type = issue.type,
-                    assignedTo = issue.assignedTo,
-                    assignedToName = issue.assignedToName,
-                    createdAt = issue.createdAt,
-                    updatedAt = issue.updatedAt
-                )
-            })
-
-            Result.success(issues)
-        } catch (e: Exception) {
-            Log.e("IssueRepository", "Get issues by site failed: ${e.message}")
-            // Fallback to local cache
-            val cachedIssues = issueDao.getIssuesBySite(siteId).map { entity ->
-                Issue(
-                    id = entity.id,
-                    title = entity.title,
-                    description = entity.description,
-                    siteId = entity.siteId,
-                    status = entity.status,
-                    priority = entity.priority,
-                    type = entity.type,
-                    assignedTo = entity.assignedTo,
-                    assignedToName = entity.assignedToName,
-                    createdAt = entity.createdAt,
-                    updatedAt = entity.updatedAt
-                )
+            if (cacheIsValid && !forceRefresh) {
+                val cached = issueDao.getIssuesBySite(siteId)
+                if (cached.isNotEmpty()) {
+                    return Result.success(cached.map { mapEntityToIssue(it) })
+                }
             }
-            if (cachedIssues.isNotEmpty()) {
-                Result.success(cachedIssues)
+
+            if (networkConnectivity.isConnected()) {
+                try {
+                    val response = issuesService.getIssuesBySite(siteId)
+                    val issues = response.map { mapResponseToIssue(it) }
+
+                    issueDao.insertIssues(issues.map { issue ->
+                        IssueEntity(
+                            id = issue.id,
+                            title = issue.title,
+                            description = issue.description,
+                            siteId = issue.siteId,
+                            status = issue.status,
+                            priority = issue.priority,
+                            type = issue.type,
+                            assignedTo = issue.assignedTo,
+                            assignedToName = issue.assignedToName,
+                            createdAt = issue.createdAt,
+                            updatedAt = issue.updatedAt
+                        )
+                    })
+                    
+                    cacheMetadataDao.upsertMetadata(
+                        CacheMetadataEntity(
+                            cacheKey = cacheKey,
+                            entityType = "ISSUES",
+                            lastFetchedAt = now,
+                            expiresAt = now + CACHE_TTL_ISSUES_MS,
+                            recordCount = response.size
+                        )
+                    )
+
+                    Result.success(issues)
+                } catch (e: Exception) {
+                    val fallback = issueDao.getIssuesBySite(siteId)
+                    if (fallback.isNotEmpty()) {
+                        Result.success(fallback.map { mapEntityToIssue(it) })
+                    } else {
+                        Result.failure(e)
+                    }
+                }
             } else {
-                Result.failure(e)
+                val cached = issueDao.getIssuesBySite(siteId)
+                Result.success(cached.map { mapEntityToIssue(it) })
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
     override suspend fun getIssueById(id: Int): Result<Issue> {
         return try {
-            val response = issuesService.getIssueById(id)
-            val issue = mapResponseToIssue(response)
-            Result.success(issue)
+            if (networkConnectivity.isConnected()) {
+                try {
+                    val response = issuesService.getIssueById(id)
+                    val issue = mapResponseToIssue(response)
+                    
+                    // Cache issue details
+                    issueDao.insertIssue(IssueEntity(
+                        id = issue.id,
+                        title = issue.title,
+                        description = issue.description,
+                        siteId = issue.siteId,
+                        status = issue.status,
+                        priority = issue.priority,
+                        type = issue.type,
+                        assignedTo = issue.assignedTo,
+                        assignedToName = issue.assignedToName,
+                        createdAt = issue.createdAt,
+                        updatedAt = issue.updatedAt
+                    ))
+                    
+                    commentDao.deleteCommentsByIssue(id)
+                    commentDao.insertComments(issue.comments.map { 
+                        IssueCommentEntity(it.id, it.issueId, it.userId, it.userName, it.text, it.createdAt) 
+                    })
+                    
+                    photoDao.deletePhotosByIssue(id)
+                    photoDao.insertPhotos(issue.photos.map { 
+                        IssuePhotoEntity(it.id, it.issueId, it.photoUrl, it.uploadedAt) 
+                    })
+                    
+                    Result.success(issue)
+                } catch (e: Exception) {
+                    fallbackToCache(id, e)
+                }
+            } else {
+                fallbackToCache(id, Exception("Offline"))
+            }
         } catch (e: Exception) {
-            Log.e("IssueRepository", "Get issue by id failed: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    private suspend fun fallbackToCache(id: Int, e: Exception): Result<Issue> {
+        val cached = issueDao.getIssueById(id)
+        if (cached != null) {
+            val comments = commentDao.getCommentsByIssue(id).map { 
+                IssueComment(it.id, it.issueId, it.userId, it.userName, it.text, it.createdAt) 
+            }
+            val photos = photoDao.getPhotosByIssue(id).map { 
+                IssuePhoto(it.id, it.issueId, it.photoUrl, it.uploadedAt) 
+            }
+            return Result.success(mapEntityToIssue(cached).copy(comments = comments, photos = photos))
+        }
+        return Result.failure(e)
+    }
+
+    override suspend fun updateIssueStatus(issueId: Int, newStatus: String, contractorId: Int): Result<Issue> {
+        return try {
+            val now = System.currentTimeMillis()
+
+            val cached = issueDao.getIssueById(issueId)
+            if (cached != null) {
+                issueDao.insertIssue(cached.copy(status = newStatus, syncStatus = "PENDING"))
+            }
+
+            val payload = Json.encodeToString(
+                mapOf(
+                    "operationType" to "UPDATE_ISSUE_STATUS",
+                    "issueId" to issueId.toString(),
+                    "newStatus" to newStatus,
+                    "userId" to contractorId.toString(),
+                    "timestamp" to now.toString()
+                )
+            )
+
+            syncQueueDao.insertOperation(
+                SyncQueueEntity(
+                    operationType = "UPDATE_ISSUE_STATUS",
+                    issueId = issueId,
+                    payload = payload,
+                    createdAt = now,
+                    status = "PENDING"
+                )
+            )
+
+            if (networkConnectivity.isConnected()) {
+                syncSingleOperation(issueId, "UPDATE_ISSUE_STATUS")
+            }
+            
+            getIssueById(issueId)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    override suspend fun updateIssueStatus(issueId: Int, newStatus: String): Result<Issue> {
+    override suspend fun addComment(issueId: Int, text: String, contractorId: Int): Result<Unit> {
         return try {
-            val response = issuesService.updateIssueStatus(issueId, UpdateIssueStatusRequest(newStatus))
-            val issue = mapResponseToIssue(response)
-            Result.success(issue)
-        } catch (e: Exception) {
-            Log.e("IssueRepository", "Update issue status failed: ${e.message}")
-            Result.failure(e)
-        }
-    }
+            val now = System.currentTimeMillis()
 
-    override suspend fun addComment(issueId: Int, text: String): Result<Unit> {
-        return try {
-            issuesService.addComment(issueId, AddCommentRequest(text))
+            val tempComment = IssueCommentEntity(
+                id = -(System.currentTimeMillis() / 1000).toInt(),
+                issueId = issueId,
+                userId = contractorId,
+                userName = "Current User",
+                text = text,
+                createdAt = java.time.Instant.now().toString()
+            )
+            commentDao.insertComment(tempComment)
+
+            val payload = Json.encodeToString(
+                mapOf(
+                    "operationType" to "ADD_COMMENT",
+                    "issueId" to issueId.toString(),
+                    "text" to text,
+                    "userId" to contractorId.toString(),
+                    "timestamp" to now.toString()
+                )
+            )
+
+            syncQueueDao.insertOperation(
+                SyncQueueEntity(
+                    operationType = "ADD_COMMENT",
+                    issueId = issueId,
+                    payload = payload,
+                    createdAt = now,
+                    status = "PENDING"
+                )
+            )
+
+            if (networkConnectivity.isConnected()) {
+                syncSingleOperation(issueId, "ADD_COMMENT")
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("IssueRepository", "Add comment failed: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    override suspend fun addPhotoToIssue(issueId: Int, filePath: String): Result<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            
+            val tempPhoto = IssuePhotoEntity(
+                id = -(System.currentTimeMillis() / 1000).toInt(),
+                issueId = issueId,
+                photoUrl = filePath,
+                uploadedAt = java.time.Instant.now().toString()
+            )
+            photoDao.insertPhotos(listOf(tempPhoto))
+            
+            val payload = Json.encodeToString(
+                mapOf(
+                    "operationType" to "ADD_PHOTO",
+                    "issueId" to issueId.toString(),
+                    "filePath" to filePath,
+                    "timestamp" to now.toString()
+                )
+            )
+            
+            syncQueueDao.insertOperation(
+                SyncQueueEntity(
+                    operationType = "ADD_PHOTO",
+                    issueId = issueId,
+                    payload = payload,
+                    createdAt = now,
+                    status = "PENDING"
+                )
+            )
+            
+            if (networkConnectivity.isConnected()) {
+                syncSingleOperation(issueId, "ADD_PHOTO")
+            }
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override fun observePendingSyncCount(): Flow<Int> {
+        return syncQueueDao.observePendingCount()
+    }
+
+    private suspend fun syncSingleOperation(
+        issueId: Int,
+        operationType: String
+    ): Boolean {
+        return try {
+            val ops = syncQueueDao.getPendingOperations()
+                .filter { it.issueId == issueId && it.operationType == operationType }
+            
+            for (op in ops) {
+                when (op.operationType) {
+                    "UPDATE_ISSUE_STATUS" -> {
+                        val data = Json.parseToJsonElement(op.payload).jsonObject
+                        val newStatus = data["newStatus"]?.jsonPrimitive?.content ?: return false
+                        
+                        issuesService.updateIssueStatus(
+                            issueId,
+                            UpdateIssueStatusRequest(newStatus)
+                        )
+                        
+                        val issue = issueDao.getIssueById(issueId)
+                        if (issue != null) {
+                            issueDao.insertIssue(issue.copy(syncStatus = "SYNCED"))
+                        }
+                    }
+                    "ADD_COMMENT" -> {
+                        val data = Json.parseToJsonElement(op.payload).jsonObject
+                        val text = data["text"]?.jsonPrimitive?.content ?: return false
+                        
+                        issuesService.addComment(
+                            issueId,
+                            AddCommentRequest(text)
+                        )
+                    }
+                    "ADD_PHOTO" -> {
+                        val data = Json.parseToJsonElement(op.payload).jsonObject
+                        val filePath = data["filePath"]?.jsonPrimitive?.content ?: return false
+                        
+                        val file = File(filePath)
+                        if (file.exists()) {
+                            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                            val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+                            
+                            issuesService.uploadPhoto(issueId, body)
+                        }
+                    }
+                }
+                
+                syncQueueDao.updateOperation(
+                    op.copy(
+                        status = "SYNCED",
+                        syncedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+            true
+        } catch (e: Exception) {
+            handleSyncFailure(issueId, operationType, e)
+            false
+        }
+    }
+
+    private suspend fun handleSyncFailure(
+        issueId: Int,
+        operationType: String,
+        error: Exception
+    ) {
+        val ops = syncQueueDao.getPendingOperations()
+            .filter { it.issueId == issueId && it.operationType == operationType }
+        
+        for (op in ops) {
+            val newStatus = if (op.retryCount >= op.maxRetries) "FAILED" else "PENDING"
+            val updatedOp = op.copy(
+                retryCount = op.retryCount + 1,
+                lastError = error.message,
+                lastErrorAt = System.currentTimeMillis(),
+                status = newStatus
+            )
+            syncQueueDao.updateOperation(updatedOp)
+            
+            if (newStatus == "FAILED" && operationType == "UPDATE_ISSUE_STATUS") {
+                val issue = issueDao.getIssueById(issueId)
+                if (issue != null) {
+                    issueDao.insertIssue(issue.copy(syncStatus = "FAILED"))
+                }
+            }
         }
     }
 
@@ -118,6 +400,25 @@ class IssueRepositoryImpl @Inject constructor(
             updatedAt = response.updated_at,
             comments = response.comments.map { IssueComment(it.id, it.issue_id, it.user_id, it.user_name, it.text, it.created_at) },
             photos = response.photos.map { IssuePhoto(it.id, it.issue_id, it.photo_url, it.uploaded_at) }
+        )
+    }
+
+    private fun mapEntityToIssue(entity: IssueEntity): Issue {
+        return Issue(
+            id = entity.id,
+            title = entity.title,
+            description = entity.description,
+            siteId = entity.siteId,
+            status = entity.status,
+            priority = entity.priority,
+            type = entity.type,
+            assignedTo = entity.assignedTo,
+            assignedToName = entity.assignedToName,
+            createdAt = entity.createdAt,
+            updatedAt = entity.updatedAt,
+            comments = emptyList(),
+            photos = emptyList(),
+            syncStatus = entity.syncStatus
         )
     }
 }

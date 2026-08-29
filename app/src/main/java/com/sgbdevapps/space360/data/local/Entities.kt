@@ -20,7 +20,23 @@ data class SiteEntity(
     val openIssuesCount: Int
 )
 
-@Entity(tableName = "issues")
+@Entity(
+    tableName = "issues",
+    indices = [
+        androidx.room.Index("siteId"),
+        androidx.room.Index("assignedTo"),
+        androidx.room.Index("status"),
+        androidx.room.Index("updatedAt")
+    ],
+    foreignKeys = [
+        androidx.room.ForeignKey(
+            entity = SiteEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["siteId"],
+            onDelete = androidx.room.ForeignKey.CASCADE
+        )
+    ]
+)
 data class IssueEntity(
     @PrimaryKey val id: Int,
     val title: String,
@@ -32,7 +48,49 @@ data class IssueEntity(
     val assignedTo: Int,
     val assignedToName: String,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val syncStatus: String? = null
+)
+
+@Entity(
+    tableName = "sync_queue",
+    indices = [
+        androidx.room.Index("issueId"),
+        androidx.room.Index("createdAt"),
+        androidx.room.Index("syncedAt")
+    ]
+)
+data class SyncQueueEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    
+    val operationType: String,
+    val issueId: Int,
+    val payload: String,
+    
+    val createdAt: Long,
+    val syncedAt: Long? = null,
+    
+    val retryCount: Int = 0,
+    val maxRetries: Int = 5,
+    val lastError: String? = null,
+    val lastErrorAt: Long? = null,
+    
+    val status: String = "PENDING"
+)
+
+@Entity(
+    tableName = "cache_metadata",
+    indices = [androidx.room.Index("entityType"), androidx.room.Index("expiresAt")]
+)
+data class CacheMetadataEntity(
+    @PrimaryKey
+    val cacheKey: String,
+    
+    val entityType: String,
+    val lastFetchedAt: Long,
+    val expiresAt: Long,
+    val recordCount: Int = 0
 )
 
 @Entity(tableName = "issue_comments")

@@ -1,0 +1,23 @@
+{
+  "project_info": {
+    "project_number": "123456789012",
+    "project_id": "field-check-72967",
+    "storage_bucket": "field-check-72967.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "android_client_info": {
+          "package_name": "com.sgbdevapps.space360"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForMockingFirebase1234"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

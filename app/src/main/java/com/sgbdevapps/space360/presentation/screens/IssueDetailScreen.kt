@@ -1,18 +1,21 @@
 package com.sgbdevapps.space360.presentation.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.sgbdevapps.space360.presentation.components.LoadingState
-import com.sgbdevapps.space360.presentation.components.StatusBadge
+import com.sgbdevapps.space360.presentation.components.*
 import com.sgbdevapps.space360.presentation.viewmodels.IssueDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,119 +26,126 @@ fun IssueDetailScreen(
     viewModel: IssueDetailViewModel = hiltViewModel()
 ) {
     val issue by viewModel.issue.collectAsState()
-    val issueDetailState by viewModel.issueDetailState.collectAsState()
-    val updateState by viewModel.updateState.collectAsState()
-    var newCommentText by remember { mutableStateOf("") }
-    var selectedStatus by remember { mutableStateOf<String?>(null) }
+    val comments by viewModel.comments.collectAsState()
+    val photos by viewModel.photos.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val lastCacheUpdateTime by viewModel.lastCacheUpdateTime.collectAsState()
+
+    var showStatusBottomSheet by remember { mutableStateOf(false) }
+    var selectedPhotoIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(issueId) {
-        viewModel.loadIssue(issueId)
+        viewModel.loadIssueDetail(issueId)
     }
-
-    val statuses = listOf("Open", "In Review", "Pending", "Closed", "Critical")
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Issue Detail") },
+                title = { Text("Issue Details") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* Menu */ }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                     }
                 }
             )
+        },
+        bottomBar = {
+            CommentInputField(
+                isOnline = isOnline,
+                onSendComment = { text -> viewModel.addComment(issueId, text) }
+            )
         }
-    ) { innerPadding ->
-        when (issueDetailState) {
-            is IssueDetailViewModel.IssueDetailState.Loading -> {
-                LoadingState()
+    ) { padding ->
+        if (isLoading && issue == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            is IssueDetailViewModel.IssueDetailState.Success -> {
-                issue?.let { iss ->
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .padding(16.dp)
-                    ) {
-                        item {
-                            Text(text = iss.title, style = MaterialTheme.typography.headlineSmall)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            StatusBadge(iss.status)
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
+        } else if (issue != null) {
+            val currentIssue = issue!!
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (!isOnline && lastCacheUpdateTime != null) {
+                    Text(
+                        text = "Cached data",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
 
-                        item {
-                            Text("Description", style = MaterialTheme.typography.labelMedium)
-                            Text(iss.description)
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        item {
-                            Text("Priority: ${iss.priority}", style = MaterialTheme.typography.labelMedium)
-                            Text("Type: ${iss.type}", style = MaterialTheme.typography.labelMedium)
-                            Text("Assigned to: ${iss.assignedToName}", style = MaterialTheme.typography.labelMedium)
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // Status update
-                        item {
-                            Text("Change Status", style = MaterialTheme.typography.labelMedium)
-                            var expanded by remember { mutableStateOf(false) }
-                            Button(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(selectedStatus ?: iss.status)
-                            }
-                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                statuses.forEach { status ->
-                                    DropdownMenuItem(
-                                        text = { Text(status) },
-                                        onClick = {
-                                            selectedStatus = status
-                                            viewModel.updateStatus(issueId, status)
-                                            expanded = false
-                                        }
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // Comments
-                        item {
-                            Text("Comments", style = MaterialTheme.typography.labelMedium)
-                        }
-                        items(iss.comments) { comment ->
-                            Card(modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(comment.userName, style = MaterialTheme.typography.labelSmall)
-                                    Text(comment.text)
-                                    Text(comment.createdAt, style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        }
-
-                        // Add comment
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            TextField(
-                                value = newCommentText,
-                                onValueChange = { newCommentText = it },
-                                label = { Text("Add comment") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Button(
-                                onClick = { viewModel.addComment(issueId, newCommentText); newCommentText = "" },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Submit")
-                            }
-                        }
+                Text(text = currentIssue.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Site: ${currentIssue.siteId} | Priority: ${currentIssue.priority}", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.weight(1f))
+                    StatusBadge(currentIssue.status)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Created: ${currentIssue.createdAt}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (currentIssue.syncStatus != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IssueSyncStatusBadge(syncStatus = currentIssue.syncStatus)
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = { showStatusBottomSheet = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Update Status")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Description", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = currentIssue.description, fontSize = 16.sp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider()
+
+                PhotoGallery(
+                    photos = photos,
+                    isOnline = isOnline,
+                    onAddPhotos = { paths -> viewModel.addPhotos(issueId, paths) },
+                    onPhotoClick = { index -> selectedPhotoIndex = index }
+                )
+
+                Divider()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CommentThread(comments = comments)
+                
+                Spacer(modifier = Modifier.height(100.dp)) // Padding for bottom input
             }
-            else -> {}
+
+            if (showStatusBottomSheet) {
+                StatusUpdateBottomSheet(
+                    currentStatus = currentIssue.status,
+                    onUpdateStatus = { newStatus -> viewModel.updateIssueStatus(issueId, newStatus) },
+                    onDismiss = { showStatusBottomSheet = false }
+                )
+            }
+
+            if (selectedPhotoIndex != null) {
+                PhotoLightbox(
+                    photos = photos,
+                    initialIndex = selectedPhotoIndex!!,
+                    onDismiss = { selectedPhotoIndex = null }
+                )
+            }
         }
     }
 }

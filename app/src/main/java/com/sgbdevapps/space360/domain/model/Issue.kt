@@ -13,7 +13,8 @@ data class Issue(
     val createdAt: String,
     val updatedAt: String,
     val comments: List<IssueComment> = emptyList(),
-    val photos: List<IssuePhoto> = emptyList()
+    val photos: List<IssuePhoto> = emptyList(),
+    val syncStatus: String? = null
 )
 
 data class IssueComment(

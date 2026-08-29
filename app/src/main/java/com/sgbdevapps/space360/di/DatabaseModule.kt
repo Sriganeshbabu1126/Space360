@@ -21,7 +21,9 @@ object DatabaseModule {
             context,
             Space360Database::class.java,
             "space360_db"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
@@ -38,4 +40,10 @@ object DatabaseModule {
 
     @Provides
     fun provideIssuePhotoDao(database: Space360Database) = database.issuePhotoDao()
+
+    @Provides
+    fun provideSyncQueueDao(database: Space360Database) = database.syncQueueDao()
+
+    @Provides
+    fun provideCacheMetadataDao(database: Space360Database) = database.cacheMetadataDao()
 }
