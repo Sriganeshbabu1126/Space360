@@ -33,4 +33,11 @@ interface IssuesService {
         @Path("id") issueId: Int,
         @Body request: AddCommentRequest
     ): IssueCommentResponse
+
+    @Multipart
+    @POST("api/issues/{id}/photos")
+    suspend fun uploadPhoto(
+        @Path("id") issueId: Int,
+        @Part file: okhttp3.MultipartBody.Part
+    ): IssuePhotoResponse
 }
