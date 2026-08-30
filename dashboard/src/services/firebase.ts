@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBZLogK0LCNinkEhiLRzHIfABjeZoGWM4k",
-  authDomain: "field-check-72967.firebaseapp.com",
-  projectId: "field-check-72967",
-  storageBucket: "field-check-72967.firebasestorage.app",
-  messagingSenderId: "556920532741",
-  appId: "1:556920532741:web:73c4de63bfcd698eb8d16c",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBZLogK0LCNinkEhiLRzHIfABjeZoGWM4k",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "field-check-72967.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "field-check-72967",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "field-check-72967.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_ID || "556920532741",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:556920532741:web:73c4de63bfcd698eb8d16c",
   measurementId: "G-0WVDGBT1ER"
 };
 
