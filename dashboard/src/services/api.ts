@@ -156,18 +156,6 @@ export const exportIssues = async (format: string, filters: any) => {
 };
 
 export const getExportJobStatus = async (jobId: string) => {
-  const response = await api.get(/issues/export/ + jobId);
-  return response.data;
-};
-
-export const exportIssues = async (format: string, filters: any) => {
-  const response = await api.post('/issues/export', { format, filters }, {
-    responseType: 'blob'
-  });
-  return response;
-};
-
-export const getExportJobStatus = async (jobId: string) => {
   const response = await api.get('/issues/export/' + jobId);
   return response.data;
 };

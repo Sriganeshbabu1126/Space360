@@ -18,7 +18,8 @@ def get_current_user(
     try:
         decoded = auth.verify_id_token(token.credentials)
         return decoded
-    except Exception:
+    except Exception as e:
+        print(f"Token verification failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",

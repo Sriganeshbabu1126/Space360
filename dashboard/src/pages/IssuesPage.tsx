@@ -75,7 +75,7 @@ const issueTypeLabels: Record<string, string> = {
 const IssuesPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
-  const { selectedSiteId } = useSite(); 
+  const { selectedSiteId, setSelectedSiteId } = useSite(); 
   
   const [issues, setIssues] = useState<Issue[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -425,6 +425,23 @@ const IssuesPage: React.FC = () => {
           </span>
         </h2>
         <div className="flex space-x-3">
+          <button 
+            onClick={() => {
+              setSelectedSiteId(null);
+              setActiveFilters({
+                search_text: '',
+                statuses: [],
+                types: [],
+                sites: [],
+                contractors: [],
+                date_start: '',
+                date_end: ''
+              });
+            }}
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 shadow-sm flex items-center"
+          >
+            Show All Issues
+          </button>
           <div className="relative group">
             <button disabled={exporting} className="btn-secondary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
               <Download className="w-4 h-4 mr-1.5" />
