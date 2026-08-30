@@ -13,6 +13,8 @@ import dagger.assisted.AssistedInject
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -64,7 +66,8 @@ class SyncWorker @AssistedInject constructor(
                             
                             val file = java.io.File(filePath)
                             if (file.exists()) {
-                                val requestFile = okhttp3.RequestBody.create(okhttp3.MediaType.parse("image/*"), file)
+                                val mediaType = "image/*".toMediaTypeOrNull()
+                                val requestFile = file.asRequestBody(mediaType)
                                 val body = okhttp3.MultipartBody.Part.createFormData("file", file.name, requestFile)
                                 
                                 issuesService.uploadPhoto(issueId, body)

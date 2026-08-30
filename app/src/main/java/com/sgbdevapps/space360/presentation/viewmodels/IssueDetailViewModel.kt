@@ -81,7 +81,7 @@ class IssueDetailViewModel @Inject constructor(
     fun updateIssueStatus(issueId: Int, newStatus: String) {
         viewModelScope.launch {
             try {
-                val userId = authRepository.getCurrentUser().getOrNull()?.id ?: 0
+                val userId = authRepository.getCurrentUser().getOrNull()?.id?.toIntOrNull() ?: 0
                 val result = issueRepository.updateIssueStatus(
                     issueId = issueId,
                     newStatus = newStatus,
@@ -104,7 +104,7 @@ class IssueDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val user = authRepository.getCurrentUser().getOrNull()
-                val userId = user?.id ?: 0
+                val userId = user?.id?.toIntOrNull() ?: 0
                 val userName = user?.displayName ?: "Current User"
 
                 val result = issueRepository.addComment(
@@ -117,11 +117,10 @@ class IssueDetailViewModel @Inject constructor(
                     val newComment = IssueComment(
                         id = -(System.currentTimeMillis() / 1000).toInt(),
                         issueId = issueId,
-                        text = text,
                         userId = userId,
                         userName = userName,
-                        createdAt = java.time.Instant.now().toString(),
-                        status = "PENDING"
+                        text = text,
+                        createdAt = java.time.Instant.now().toString()
                     )
                     _comments.value = _comments.value + newComment
                     _error.value = null
@@ -148,8 +147,7 @@ class IssueDetailViewModel @Inject constructor(
                             id = -(System.currentTimeMillis() / 1000).toInt(),
                             issueId = issueId,
                             photoUrl = filePath,
-                            uploadedAt = java.time.Instant.now().toString(),
-                            status = "PENDING"
+                            uploadedAt = java.time.Instant.now().toString()
                         )
                         _photos.value = _photos.value + newPhoto
                     }

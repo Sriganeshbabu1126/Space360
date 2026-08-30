@@ -5,13 +5,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.sgbdevapps.space360.domain.model.Issue
 import com.sgbdevapps.space360.presentation.components.ErrorState
 import com.sgbdevapps.space360.presentation.components.IssueCard
 import com.sgbdevapps.space360.presentation.components.LoadingState
@@ -53,7 +58,7 @@ fun IssuesListScreen(
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = searchQuery,
@@ -65,7 +70,7 @@ fun IssuesListScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(onClick = { showFilters = !showFilters }) {
-                Icon(Icons.Default.FilterList, contentDescription = "Filters")
+                Icon(Icons.Default.List, contentDescription = "Filters")
             }
         }
 
@@ -79,19 +84,19 @@ fun IssuesListScreen(
             ) {
                 // Status Filter
                 Box(modifier = Modifier.weight(1f)) {
-                    var expanded by remember { mutableStateOf(false) }
+                    var statusExpanded by remember { mutableStateOf(false) }
                     OutlinedButton(
-                        onClick = { expanded = true },
+                        onClick = { statusExpanded = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(selectedStatus ?: "Status: All")
                     }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text("All Statuses") },
                             onClick = {
                                 viewModel.updateStatusFilter(null)
-                                expanded = false
+                                statusExpanded = false
                             }
                         )
                         statuses.forEach { status ->
@@ -99,7 +104,7 @@ fun IssuesListScreen(
                                 text = { Text(status) },
                                 onClick = {
                                     viewModel.updateStatusFilter(status)
-                                    expanded = false
+                                    statusExpanded = false
                                 }
                             )
                         }
@@ -108,19 +113,19 @@ fun IssuesListScreen(
 
                 // Priority Filter
                 Box(modifier = Modifier.weight(1f)) {
-                    var expanded by remember { mutableStateOf(false) }
+                    var priorityExpanded by remember { mutableStateOf(false) }
                     OutlinedButton(
-                        onClick = { expanded = true },
+                        onClick = { priorityExpanded = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(selectedPriority ?: "Priority: All")
                     }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenu(expanded = priorityExpanded, onDismissRequest = { priorityExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text("All Priorities") },
                             onClick = {
                                 viewModel.updatePriorityFilter(null)
-                                expanded = false
+                                priorityExpanded = false
                             }
                         )
                         priorities.forEach { priority ->
@@ -128,7 +133,7 @@ fun IssuesListScreen(
                                 text = { Text(priority) },
                                 onClick = {
                                     viewModel.updatePriorityFilter(priority)
-                                    expanded = false
+                                    priorityExpanded = false
                                 }
                             )
                         }
@@ -152,19 +157,19 @@ fun IssuesListScreen(
         }
 
         // Issues list
-        when (issuesState) {
+        when (val state = issuesState) {
             is IssuesListViewModel.IssuesState.Loading -> {
                 LoadingState()
             }
             is IssuesListViewModel.IssuesState.Error -> {
                 ErrorState(
-                    message = (issuesState as IssuesListViewModel.IssuesState.Error).message,
+                    message = state.message,
                     onRetry = { viewModel.refreshIssues() }
                 )
             }
             else -> {
                 if (filteredIssues.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No issues found")
                     }
                 } else {
