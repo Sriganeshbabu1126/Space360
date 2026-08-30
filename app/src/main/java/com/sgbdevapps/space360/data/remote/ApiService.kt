@@ -3,41 +3,41 @@ package com.sgbdevapps.space360.data.remote
 import retrofit2.http.*
 
 interface AuthService {
-    @POST("api/auth/login")
+    @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
 }
 
 interface SitesService {
-    @GET("api/sites")
+    @GET("sites")
     suspend fun getAssignedSites(): List<SiteResponse>
 
-    @GET("api/sites/{id}")
-    suspend fun getSiteById(@Path("id") id: Int): SiteResponse
+    @GET("sites/{id}")
+    suspend fun getSiteById(@Path("id") id: String): SiteResponse
 }
 
 interface IssuesService {
-    @GET("api/sites/{siteId}/issues")
-    suspend fun getIssuesBySite(@Path("siteId") siteId: Int): List<IssueResponse>
+    @GET("issues")
+    suspend fun getIssuesBySite(@Query("site_id") siteId: String): List<IssueResponse>
 
-    @GET("api/issues/{id}")
-    suspend fun getIssueById(@Path("id") id: Int): IssueResponse
+    @GET("issues/{id}")
+    suspend fun getIssueById(@Path("id") id: String): IssueResponse
 
-    @PUT("api/issues/{id}")
+    @PUT("issues/{id}")
     suspend fun updateIssueStatus(
-        @Path("id") id: Int,
+        @Path("id") id: String,
         @Body request: UpdateIssueStatusRequest
     ): IssueResponse
 
-    @POST("api/issues/{id}/comments")
+    @POST("issues/{id}/comments")
     suspend fun addComment(
-        @Path("id") issueId: Int,
+        @Path("id") issueId: String,
         @Body request: AddCommentRequest
     ): IssueCommentResponse
 
     @Multipart
-    @POST("api/issues/{id}/photos")
+    @POST("issues/{id}/photos")
     suspend fun uploadPhoto(
-        @Path("id") issueId: Int,
+        @Path("id") issueId: String,
         @Part file: okhttp3.MultipartBody.Part
     ): IssuePhotoResponse
 }

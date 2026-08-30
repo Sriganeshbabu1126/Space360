@@ -29,14 +29,14 @@ class IssuesListViewModel @Inject constructor(
     private val _issues = MutableStateFlow<List<Issue>>(emptyList())
     val issues: StateFlow<List<Issue>> = _issues
 
-    private val _selectedSiteId = MutableStateFlow<Int?>(null)
-    val selectedSiteId: StateFlow<Int?> = _selectedSiteId
+    private val _selectedSiteId = MutableStateFlow<String?>(null)
+    val selectedSiteId: StateFlow<String?> = _selectedSiteId
 
     private val _selectedStatusFilter = MutableStateFlow<String?>(null)
     val selectedStatusFilter: StateFlow<String?> = _selectedStatusFilter.asStateFlow()
 
-    private val _selectedSiteFilter = MutableStateFlow<Int?>(null)
-    val selectedSiteFilter: StateFlow<Int?> = _selectedSiteFilter.asStateFlow()
+    private val _selectedSiteFilter = MutableStateFlow<String?>(null)
+    val selectedSiteFilter: StateFlow<String?> = _selectedSiteFilter.asStateFlow()
 
     private val _selectedPriorityFilter = MutableStateFlow<String?>(null)
     val selectedPriorityFilter: StateFlow<String?> = _selectedPriorityFilter.asStateFlow()
@@ -80,7 +80,7 @@ class IssuesListViewModel @Inject constructor(
         }
     }
 
-    fun loadIssuesBySite(siteId: Int, forceRefresh: Boolean = false) {
+    fun loadIssuesBySite(siteId: String, forceRefresh: Boolean = false) {
         _selectedSiteId.value = siteId
         _selectedSiteFilter.value = siteId
         viewModelScope.launch {
@@ -99,7 +99,7 @@ class IssuesListViewModel @Inject constructor(
         _selectedStatusFilter.value = status
     }
 
-    fun updateSiteFilter(site: Int?) {
+    fun updateSiteFilter(site: String?) {
         _selectedSiteFilter.value = site
     }
 

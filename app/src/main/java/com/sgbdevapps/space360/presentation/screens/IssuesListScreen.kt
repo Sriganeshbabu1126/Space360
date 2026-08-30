@@ -28,7 +28,7 @@ import com.sgbdevapps.space360.presentation.viewmodels.IssuesListViewModel
 @Composable
 fun IssuesListScreen(
     navController: NavController,
-    siteId: Int,
+    siteId: String,
     viewModel: IssuesListViewModel = hiltViewModel()
 ) {
     val filteredIssues by viewModel.filteredIssues.collectAsState()

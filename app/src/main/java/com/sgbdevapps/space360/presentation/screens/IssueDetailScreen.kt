@@ -25,7 +25,7 @@ import com.sgbdevapps.space360.presentation.viewmodels.IssueDetailViewModel
 @Composable
 fun IssueDetailScreen(
     navController: NavController,
-    issueId: Int,
+    issueId: String,
     viewModel: IssueDetailViewModel = hiltViewModel()
 ) {
     val issue by viewModel.issue.collectAsState()

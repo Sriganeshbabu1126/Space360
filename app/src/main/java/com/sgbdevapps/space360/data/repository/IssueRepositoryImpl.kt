@@ -47,7 +47,7 @@ class IssueRepositoryImpl @Inject constructor(
         private const val CACHE_TTL_ISSUES_MS = 24 * 60 * 60 * 1000L // 24 hours
     }
 
-    override suspend fun getIssuesBySite(siteId: Int, forceRefresh: Boolean): Result<List<Issue>> {
+    override suspend fun getIssuesBySite(siteId: String, forceRefresh: Boolean): Result<List<Issue>> {
         return try {
             val cacheKey = "issues:site:$siteId"
             val now = System.currentTimeMillis()
@@ -111,7 +111,7 @@ class IssueRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getIssueById(id: Int): Result<Issue> {
+    override suspend fun getIssueById(id: String): Result<Issue> {
         return try {
             if (networkConnectivity.isConnected()) {
                 try {
@@ -155,7 +155,7 @@ class IssueRepositoryImpl @Inject constructor(
         }
     }
     
-    private suspend fun fallbackToCache(id: Int, e: Exception): Result<Issue> {
+    private suspend fun fallbackToCache(id: String, e: Exception): Result<Issue> {
         val cached = issueDao.getIssueById(id)
         if (cached != null) {
             val comments = commentDao.getCommentsByIssue(id).map { 
@@ -169,7 +169,7 @@ class IssueRepositoryImpl @Inject constructor(
         return Result.failure(e)
     }
 
-    override suspend fun updateIssueStatus(issueId: Int, newStatus: String, contractorId: Int): Result<Issue> {
+    override suspend fun updateIssueStatus(issueId: String, newStatus: String, contractorId: String): Result<Issue> {
         return try {
             val now = System.currentTimeMillis()
 
@@ -208,12 +208,12 @@ class IssueRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun addComment(issueId: Int, text: String, contractorId: Int): Result<Unit> {
+    override suspend fun addComment(issueId: String, text: String, contractorId: String): Result<Unit> {
         return try {
             val now = System.currentTimeMillis()
 
             val tempComment = IssueCommentEntity(
-                id = -(System.currentTimeMillis() / 1000).toInt(),
+                id = java.util.UUID.randomUUID().toString(),
                 issueId = issueId,
                 userId = contractorId,
                 userName = "Current User",
@@ -252,12 +252,12 @@ class IssueRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun addPhotoToIssue(issueId: Int, filePath: String): Result<Unit> {
+    override suspend fun addPhotoToIssue(issueId: String, filePath: String): Result<Unit> {
         return try {
             val now = System.currentTimeMillis()
             
             val tempPhoto = IssuePhotoEntity(
-                id = -(System.currentTimeMillis() / 1000).toInt(),
+                id = java.util.UUID.randomUUID().toString(),
                 issueId = issueId,
                 photoUrl = filePath,
                 uploadedAt = java.time.Instant.now().toString()
@@ -298,7 +298,7 @@ class IssueRepositoryImpl @Inject constructor(
     }
 
     private suspend fun syncSingleOperation(
-        issueId: Int,
+        issueId: String,
         operationType: String
     ): Boolean {
         return try {
@@ -359,7 +359,7 @@ class IssueRepositoryImpl @Inject constructor(
     }
 
     private suspend fun handleSyncFailure(
-        issueId: Int,
+        issueId: String,
         operationType: String,
         error: Exception
     ) {
@@ -389,17 +389,17 @@ class IssueRepositoryImpl @Inject constructor(
         return Issue(
             id = response.id,
             title = response.title,
-            description = response.description,
+            description = response.description ?: "",
             siteId = response.site_id,
             status = response.status,
-            priority = response.priority,
+            priority = response.priority ?: "Medium",
             type = response.type,
-            assignedTo = response.assigned_to,
-            assignedToName = response.assigned_to_name,
+            assignedTo = response.assigned_to ?: "",
+            assignedToName = response.assigned_to_name ?: "Unassigned",
             createdAt = response.created_at,
             updatedAt = response.updated_at,
-            comments = response.comments.map { IssueComment(it.id, it.issue_id, it.user_id, it.user_name, it.text, it.created_at) },
-            photos = response.photos.map { IssuePhoto(it.id, it.issue_id, it.photo_url, it.uploaded_at) }
+            comments = response.comments?.map { IssueComment(it.id, it.issue_id, it.user_id, it.user_name, it.text, it.created_at) } ?: emptyList(),
+            photos = response.photos?.map { IssuePhoto(it.id, it.issue_id, it.photo_url, it.uploaded_at) } ?: emptyList()
         )
     }
 

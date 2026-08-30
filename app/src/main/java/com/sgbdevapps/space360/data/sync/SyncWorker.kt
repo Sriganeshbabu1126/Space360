@@ -44,7 +44,7 @@ class SyncWorker @AssistedInject constructor(
                     when (op.operationType) {
                         "UPDATE_ISSUE_STATUS" -> {
                             val data = Json.parseToJsonElement(op.payload).jsonObject
-                            val issueId = data["issueId"]?.jsonPrimitive?.content?.toIntOrNull() ?: continue
+                            val issueId = data["issueId"]?.jsonPrimitive?.content ?: continue
                             val newStatus = data["newStatus"]?.jsonPrimitive?.content ?: continue
 
                             issuesService.updateIssueStatus(
@@ -54,14 +54,14 @@ class SyncWorker @AssistedInject constructor(
                         }
                         "ADD_COMMENT" -> {
                             val data = Json.parseToJsonElement(op.payload).jsonObject
-                            val issueId = data["issueId"]?.jsonPrimitive?.content?.toIntOrNull() ?: continue
+                            val issueId = data["issueId"]?.jsonPrimitive?.content ?: continue
                             val text = data["text"]?.jsonPrimitive?.content ?: continue
 
                             issuesService.addComment(issueId, AddCommentRequest(text))
                         }
                         "ADD_PHOTO" -> {
                             val data = Json.parseToJsonElement(op.payload).jsonObject
-                            val issueId = data["issueId"]?.jsonPrimitive?.content?.toIntOrNull() ?: continue
+                            val issueId = data["issueId"]?.jsonPrimitive?.content ?: continue
                             val filePath = data["filePath"]?.jsonPrimitive?.content ?: continue
                             
                             val file = java.io.File(filePath)

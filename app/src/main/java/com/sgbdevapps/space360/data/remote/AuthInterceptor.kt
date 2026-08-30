@@ -7,6 +7,8 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 
+import com.google.android.gms.tasks.Tasks
+
 class AuthInterceptor @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : Interceptor {
@@ -14,11 +16,18 @@ class AuthInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Get Firebase ID token
-        val idToken = runBlocking {
-            firebaseAuth.currentUser?.getIdToken(false)?.addOnSuccessListener { result ->
-                // Token available
-            }?.result?.token ?: ""
+        // Get Firebase ID token synchronously
+        val idToken = try {
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                val task = user.getIdToken(false)
+                Tasks.await(task).token ?: ""
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e("AuthInterceptor", "Failed to get token", e)
+            ""
         }
 
         // Inject Bearer token
