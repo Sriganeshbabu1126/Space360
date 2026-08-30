@@ -36,11 +36,11 @@ fun NavGraph(
             DashboardScreen(navController)
         }
         composable(Route.IssuesList.route) { backStackEntry ->
-            val siteId = backStackEntry.arguments?.getString("siteId")?.toInt() ?: 0
+            val siteId = backStackEntry.arguments?.getString("siteId") ?: ""
             IssuesListScreen(navController, siteId)
         }
         composable(Route.IssueDetail.route) { backStackEntry ->
-            val issueId = backStackEntry.arguments?.getString("issueId")?.toInt() ?: 0
+            val issueId = backStackEntry.arguments?.getString("issueId") ?: ""
             IssueDetailScreen(navController, issueId)
         }
         composable(Route.Capture.route) {

@@ -54,7 +54,7 @@ fun DashboardScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = site.name, style = MaterialTheme.typography.titleMedium)
-                            Text(text = site.location)
+                            Text(text = site.location ?: "Location not specified")
                             Text(text = "Open Issues: ${site.openIssuesCount}")
                             Button(
                                 onClick = { navController.navigate(Route.IssuesList.route.replace("{siteId}", site.id.toString())) },

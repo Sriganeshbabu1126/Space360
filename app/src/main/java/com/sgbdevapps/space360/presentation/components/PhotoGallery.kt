@@ -85,7 +85,7 @@ fun PhotoGallery(
                             modifier = Modifier.fillMaxSize()
                         )
                         // If id is negative, it's pending
-                        if (photo.id < 0) {
+                        if (false) {
                             Badge(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                             ) {

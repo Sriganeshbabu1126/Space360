@@ -14,7 +14,7 @@ data class AuthResponse(
 )
 
 data class UserResponse(
-    val id: Int,
+    val id: String,
     val email: String,
     val display_name: String? = null,
     val role: String = "Contractor"
@@ -22,23 +22,23 @@ data class UserResponse(
 
 // Sites
 data class SiteResponse(
-    val id: Int,
+    val id: String,
     val name: String,
-    val location: String,
+    @SerializedName("address") val location: String? = null,
     val status: String = "Active",
     val open_issues_count: Int = 0
 )
 
 // Issues
 data class IssueResponse(
-    val id: Int,
+    val id: String,
     val title: String,
     val description: String,
-    val site_id: Int,
+    val site_id: String,
     val status: String = "Open",
     val priority: String = "Medium",
     val type: String = "defect",
-    val assigned_to: Int,
+    val assigned_to: String,
     val assigned_to_name: String,
     val created_at: String,
     val updated_at: String,
@@ -47,17 +47,17 @@ data class IssueResponse(
 )
 
 data class IssueCommentResponse(
-    val id: Int,
-    val issue_id: Int,
-    val user_id: Int,
+    val id: String,
+    val issue_id: String,
+    val user_id: String,
     val user_name: String,
     val text: String,
     val created_at: String
 )
 
 data class IssuePhotoResponse(
-    val id: Int,
-    val issue_id: Int,
+    val id: String,
+    val issue_id: String,
     val photo_url: String,
     val uploaded_at: String
 )

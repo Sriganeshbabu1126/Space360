@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "users")
 data class UserEntity(
-    @PrimaryKey val id: Int,
+    @PrimaryKey val id: String,
     val email: String,
     val displayName: String?,
     val role: String
@@ -13,9 +13,9 @@ data class UserEntity(
 
 @Entity(tableName = "sites")
 data class SiteEntity(
-    @PrimaryKey val id: Int,
+    @PrimaryKey val id: String,
     val name: String,
-    val location: String,
+    val location: String?,
     val status: String,
     val openIssuesCount: Int
 )
@@ -38,14 +38,14 @@ data class SiteEntity(
     ]
 )
 data class IssueEntity(
-    @PrimaryKey val id: Int,
+    @PrimaryKey val id: String,
     val title: String,
     val description: String,
-    val siteId: Int,
+    val siteId: String,
     val status: String,
     val priority: String,
     val type: String,
-    val assignedTo: Int,
+    val assignedTo: String,
     val assignedToName: String,
     val createdAt: String,
     val updatedAt: String,
@@ -65,7 +65,7 @@ data class SyncQueueEntity(
     val id: Long = 0,
     
     val operationType: String,
-    val issueId: Int,
+    val issueId: String,
     val payload: String,
     
     val createdAt: Long,
@@ -95,9 +95,9 @@ data class CacheMetadataEntity(
 
 @Entity(tableName = "issue_comments")
 data class IssueCommentEntity(
-    @PrimaryKey val id: Int,
-    val issueId: Int,
-    val userId: Int,
+    @PrimaryKey val id: String,
+    val issueId: String,
+    val userId: String,
     val userName: String,
     val text: String,
     val createdAt: String
@@ -105,8 +105,8 @@ data class IssueCommentEntity(
 
 @Entity(tableName = "issue_photos")
 data class IssuePhotoEntity(
-    @PrimaryKey val id: Int,
-    val issueId: Int,
+    @PrimaryKey val id: String,
+    val issueId: String,
     val photoUrl: String,
     val uploadedAt: String
 )

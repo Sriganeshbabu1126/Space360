@@ -58,7 +58,7 @@ class IssueDetailViewModel @Inject constructor(
         }
     }
     
-    fun loadIssueDetail(issueId: Int) {
+    fun loadIssueDetail(issueId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -78,10 +78,10 @@ class IssueDetailViewModel @Inject constructor(
         }
     }
     
-    fun updateIssueStatus(issueId: Int, newStatus: String) {
+    fun updateIssueStatus(issueId: String, newStatus: String) {
         viewModelScope.launch {
             try {
-                val userId = authRepository.getCurrentUser().getOrNull()?.id?.toIntOrNull() ?: 0
+                val userId = authRepository.getCurrentUser().getOrNull()?.id ?: ""
                 val result = issueRepository.updateIssueStatus(
                     issueId = issueId,
                     newStatus = newStatus,
@@ -100,11 +100,11 @@ class IssueDetailViewModel @Inject constructor(
         }
     }
     
-    fun addComment(issueId: Int, text: String) {
+    fun addComment(issueId: String, text: String) {
         viewModelScope.launch {
             try {
                 val user = authRepository.getCurrentUser().getOrNull()
-                val userId = user?.id?.toIntOrNull() ?: 0
+                val userId = user?.id ?: ""
                 val userName = user?.displayName ?: "Current User"
 
                 val result = issueRepository.addComment(
@@ -115,7 +115,7 @@ class IssueDetailViewModel @Inject constructor(
                 
                 if (result.isSuccess) {
                     val newComment = IssueComment(
-                        id = -(System.currentTimeMillis() / 1000).toInt(),
+                        id = java.util.UUID.randomUUID().toString(),
                         issueId = issueId,
                         userId = userId,
                         userName = userName,
@@ -133,7 +133,7 @@ class IssueDetailViewModel @Inject constructor(
         }
     }
     
-    fun addPhotos(issueId: Int, photoFilePaths: List<String>) {
+    fun addPhotos(issueId: String, photoFilePaths: List<String>) {
         viewModelScope.launch {
             for (filePath in photoFilePaths) {
                 try {
@@ -144,7 +144,7 @@ class IssueDetailViewModel @Inject constructor(
                     
                     if (result.isSuccess) {
                         val newPhoto = IssuePhoto(
-                            id = -(System.currentTimeMillis() / 1000).toInt(),
+                            id = java.util.UUID.randomUUID().toString(),
                             issueId = issueId,
                             photoUrl = filePath,
                             uploadedAt = java.time.Instant.now().toString()

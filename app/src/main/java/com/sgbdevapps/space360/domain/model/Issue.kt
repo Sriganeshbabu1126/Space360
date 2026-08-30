@@ -1,14 +1,14 @@
 package com.sgbdevapps.space360.domain.model
 
 data class Issue(
-    val id: Int,
+    val id: String,
     val title: String,
     val description: String,
-    val siteId: Int,
+    val siteId: String,
     val status: String = "Open", // Open, In Review, Pending, Closed, Critical
     val priority: String = "Medium", // Low, Medium, High, Critical
     val type: String = "defect", // defect, safety_issue, quality_issue, incomplete_work, rework_required
-    val assignedTo: Int,
+    val assignedTo: String,
     val assignedToName: String,
     val createdAt: String,
     val updatedAt: String,
@@ -18,17 +18,17 @@ data class Issue(
 )
 
 data class IssueComment(
-    val id: Int,
-    val issueId: Int,
-    val userId: Int,
+    val id: String,
+    val issueId: String,
+    val userId: String,
     val userName: String,
     val text: String,
     val createdAt: String
 )
 
 data class IssuePhoto(
-    val id: Int,
-    val issueId: Int,
+    val id: String,
+    val issueId: String,
     val photoUrl: String,
     val uploadedAt: String
 )

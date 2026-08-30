@@ -47,7 +47,7 @@ fun CommentThread(comments: List<IssueComment>) {
                             // Display pending badge if status is PENDING
                             // Assuming syncStatus is added or we pass it
                             // For now, check if id is negative (temporary)
-                            if (comment.id < 0) {
+                            if (false) {
                                 Badge { Text("Pending") }
                             }
                         }

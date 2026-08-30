@@ -58,7 +58,7 @@ class SiteRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getSiteById(id: Int): Result<Site> {
+    override suspend fun getSiteById(id: String): Result<Site> {
         return try {
             val response = sitesService.getSiteById(id)
             val site = Site(

@@ -8,7 +8,7 @@ interface UserDao {
     suspend fun insertUser(user: UserEntity)
 
     @Query("SELECT * FROM users WHERE id = :id")
-    suspend fun getUserById(id: Int): UserEntity?
+    suspend fun getUserById(id: String): UserEntity?
 
     @Query("SELECT * FROM users LIMIT 1")
     suspend fun getCurrentUser(): UserEntity?
@@ -26,7 +26,7 @@ interface SiteDao {
     suspend fun getAllSites(): List<SiteEntity>
 
     @Query("SELECT * FROM sites WHERE id = :id")
-    suspend fun getSiteById(id: Int): SiteEntity?
+    suspend fun getSiteById(id: String): SiteEntity?
 
     @Query("DELETE FROM sites")
     suspend fun deleteAllSites()
@@ -41,13 +41,13 @@ interface IssueDao {
     suspend fun insertIssue(issue: IssueEntity)
 
     @Query("SELECT * FROM issues WHERE siteId = :siteId")
-    suspend fun getIssuesBySite(siteId: Int): List<IssueEntity>
+    suspend fun getIssuesBySite(siteId: String): List<IssueEntity>
 
     @Query("SELECT * FROM issues WHERE id = :id")
-    suspend fun getIssueById(id: Int): IssueEntity?
+    suspend fun getIssueById(id: String): IssueEntity?
 
     @Query("DELETE FROM issues WHERE siteId = :siteId")
-    suspend fun deleteIssuesBySite(siteId: Int)
+    suspend fun deleteIssuesBySite(siteId: String)
 }
 
 @Dao
@@ -59,10 +59,10 @@ interface IssueCommentDao {
     suspend fun insertComment(comment: IssueCommentEntity)
 
     @Query("SELECT * FROM issue_comments WHERE issueId = :issueId ORDER BY createdAt ASC")
-    suspend fun getCommentsByIssue(issueId: Int): List<IssueCommentEntity>
+    suspend fun getCommentsByIssue(issueId: String): List<IssueCommentEntity>
 
     @Query("DELETE FROM issue_comments WHERE issueId = :issueId")
-    suspend fun deleteCommentsByIssue(issueId: Int)
+    suspend fun deleteCommentsByIssue(issueId: String)
 }
 
 @Dao
@@ -71,10 +71,10 @@ interface IssuePhotoDao {
     suspend fun insertPhotos(photos: List<IssuePhotoEntity>)
 
     @Query("SELECT * FROM issue_photos WHERE issueId = :issueId")
-    suspend fun getPhotosByIssue(issueId: Int): List<IssuePhotoEntity>
+    suspend fun getPhotosByIssue(issueId: String): List<IssuePhotoEntity>
 
     @Query("DELETE FROM issue_photos WHERE issueId = :issueId")
-    suspend fun deletePhotosByIssue(issueId: Int)
+    suspend fun deletePhotosByIssue(issueId: String)
 }
 
 @Dao

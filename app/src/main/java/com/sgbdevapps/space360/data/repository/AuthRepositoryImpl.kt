@@ -35,7 +35,7 @@ class AuthRepositoryImpl @Inject constructor(
             // Cache locally
             userDao.insertUser(
                 UserEntity(
-                    id = user.id.hashCode(),
+                    id = firebaseUser.uid,
                     email = user.email,
                     displayName = user.displayName,
                     role = user.role
