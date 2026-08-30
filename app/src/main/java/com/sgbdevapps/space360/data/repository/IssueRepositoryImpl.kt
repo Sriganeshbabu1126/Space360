@@ -393,7 +393,7 @@ class IssueRepositoryImpl @Inject constructor(
             siteId = response.site_id,
             status = response.status,
             priority = response.priority ?: "Medium",
-            type = response.type,
+            type = response.type ?: "defect",
             assignedTo = response.assigned_to ?: "",
             assignedToName = response.assigned_to_name ?: "Unassigned",
             createdAt = response.created_at,
