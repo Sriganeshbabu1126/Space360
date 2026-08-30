@@ -33,17 +33,17 @@ data class SiteResponse(
 data class IssueResponse(
     val id: String,
     val title: String,
-    val description: String,
-    val site_id: String,
+    val description: String? = null,
+    @SerializedName("location_id") val site_id: String,
     val status: String = "Open",
-    val priority: String = "Medium",
-    val type: String = "defect",
-    val assigned_to: String,
-    val assigned_to_name: String,
+    val priority: String? = "Medium",
+    @SerializedName("issue_type") val type: String? = "defect",
+    val assigned_to: String? = null,
+    val assigned_to_name: String? = null,
     val created_at: String,
     val updated_at: String,
-    val comments: List<IssueCommentResponse> = emptyList(),
-    val photos: List<IssuePhotoResponse> = emptyList()
+    val comments: List<IssueCommentResponse>? = emptyList(),
+    val photos: List<IssuePhotoResponse>? = emptyList()
 )
 
 data class IssueCommentResponse(
