@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.100.13:8000/" // Updated for physical device on Wi-Fi
+    private const val BASE_URL = "http://192.168.100.13:8000/" // Auto-updated by START-SPACE360.bat
 
     @Provides
     @Singleton
