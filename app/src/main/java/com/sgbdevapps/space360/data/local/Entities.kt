@@ -27,10 +27,6 @@ data class SiteEntity(
         androidx.room.Index("assignedTo"),
         androidx.room.Index("status"),
         androidx.room.Index("updatedAt")
-    ],
-            childColumns = ["siteId"],
-            onDelete = androidx.room.ForeignKey.CASCADE
-        )
     ]
 )
 data class IssueEntity(
