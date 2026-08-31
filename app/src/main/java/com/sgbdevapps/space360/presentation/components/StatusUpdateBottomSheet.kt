@@ -17,13 +17,19 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun StatusUpdateBottomSheet(
     currentStatus: String,
+    isAdmin: Boolean = false,
     onUpdateStatus: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val validTransitions = when (currentStatus) {
-        "Open" -> listOf("In Review")
-        "In Review" -> listOf("Pending")
-        else -> emptyList() // Pending -> no transitions
+    val allStatuses = listOf("Open", "In Review", "Pending", "Closed", "Critical")
+    val validTransitions = if (isAdmin) {
+        allStatuses.filter { it != currentStatus }
+    } else {
+        when (currentStatus) {
+            "Open" -> listOf("In Review")
+            "In Review" -> listOf("Pending")
+            else -> emptyList() // Pending -> no transitions
+        }
     }
 
     if (validTransitions.isEmpty()) {

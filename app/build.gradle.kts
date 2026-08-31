@@ -123,3 +123,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
 
+
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
