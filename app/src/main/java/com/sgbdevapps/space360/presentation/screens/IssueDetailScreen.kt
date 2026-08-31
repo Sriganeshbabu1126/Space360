@@ -137,6 +137,7 @@ fun IssueDetailScreen(
             if (showStatusBottomSheet) {
                 StatusUpdateBottomSheet(
                     currentStatus = currentIssue.status,
+                    isAdmin = isAdmin,
                     onUpdateStatus = { newStatus -> viewModel.updateIssueStatus(issueId, newStatus) },
                     onDismiss = { showStatusBottomSheet = false }
                 )

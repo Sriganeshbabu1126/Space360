@@ -44,6 +44,9 @@ class IssueDetailViewModel @Inject constructor(
     private val _lastCacheUpdateTime = MutableStateFlow<Long?>(null)
     val lastCacheUpdateTime: StateFlow<Long?> = _lastCacheUpdateTime.asStateFlow()
     
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+    
     init {
         viewModelScope.launch {
             networkConnectivity.isOnline.collect { online ->
@@ -55,6 +58,11 @@ class IssueDetailViewModel @Inject constructor(
             issueRepository.observePendingSyncCount().collect { count ->
                 _pendingSyncCount.value = count
             }
+        }
+        
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser().getOrNull()
+            _isAdmin.value = user?.email == "wincadsg@gmail.com"
         }
     }
     
