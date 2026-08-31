@@ -59,7 +59,7 @@ data class IssuePhotoResponse(
     val id: String,
     val issue_id: String,
     val photo_url: String,
-    val uploaded_at: String
+    @SerializedName("created_at") val uploaded_at: String? = ""
 )
 
 data class UpdateIssueStatusRequest(
