@@ -59,6 +59,7 @@ class SiteResponse(BaseModel):
     created_by: str
     status: StatusEnum
     created_at: datetime
+    open_issues_count: int = 0
 
     class Config:
         from_attributes = True
