@@ -29,6 +29,7 @@ fun IssueDetailScreen(
     viewModel: IssueDetailViewModel = hiltViewModel()
 ) {
     val issue by viewModel.issue.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()
     val comments by viewModel.comments.collectAsState()
     val photos by viewModel.photos.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
