@@ -37,7 +37,7 @@ echo.
 echo --- Starting Space360 ---
 echo.
 echo Starting Backend API...
-start cmd /k "cd F:\Space360\backend && call venv\Scripts\activate && uvicorn main:app --reload --port 8000"
+start cmd /k "cd F:\Space360\backend && call venv\Scripts\activate && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 echo.
 echo Starting Dashboard...
 start cmd /k "cd F:\Space360\dashboard && npm start"
