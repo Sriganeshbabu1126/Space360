@@ -247,10 +247,10 @@ def update_issue(
     if payload.status and payload.status != issue.status:
         is_admin = user_email == "wincadsg@gmail.com"
         
-        # Only admins can set pending, closed, or critical
-        admin_only_statuses = [IssueStatusEnum.pending, IssueStatusEnum.closed, IssueStatusEnum.critical]
+        # Only admins can set closed or critical
+        admin_only_statuses = [IssueStatusEnum.closed, IssueStatusEnum.critical]
         if payload.status in admin_only_statuses and not is_admin:
-            raise HTTPException(status_code=403, detail="Only admins can set status to pending/closed/critical")
+            raise HTTPException(status_code=403, detail="Only admins can set status to closed/critical")
             
         # Check if user is an assigned contractor with sufficient privileges
         has_access = False

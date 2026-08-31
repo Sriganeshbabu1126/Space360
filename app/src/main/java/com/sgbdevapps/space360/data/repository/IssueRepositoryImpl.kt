@@ -171,18 +171,19 @@ class IssueRepositoryImpl @Inject constructor(
 
     override suspend fun updateIssueStatus(issueId: String, newStatus: String, contractorId: String): Result<Issue> {
         return try {
+            val backendStatus = mapStatusToBackend(newStatus)
             val now = System.currentTimeMillis()
 
             val cached = issueDao.getIssueById(issueId)
             if (cached != null) {
-                issueDao.insertIssue(cached.copy(status = newStatus, syncStatus = "PENDING"))
+                issueDao.insertIssue(cached.copy(status = backendStatus, syncStatus = "PENDING"))
             }
 
             val payload = Json.encodeToString(
                 mapOf(
                     "operationType" to "UPDATE_ISSUE_STATUS",
                     "issueId" to issueId.toString(),
-                    "newStatus" to newStatus,
+                    "newStatus" to backendStatus,
                     "userId" to contractorId.toString(),
                     "timestamp" to now.toString()
                 )
@@ -385,13 +386,35 @@ class IssueRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun mapStatusToUi(backendStatus: String): String {
+        return when (backendStatus.lowercase()) {
+            "open" -> "Open"
+            "in_review" -> "In Progress"
+            "pending" -> "Done"
+            "closed" -> "Closed"
+            "critical" -> "Critical"
+            else -> "Open"
+        }
+    }
+
+    private fun mapStatusToBackend(uiStatus: String): String {
+        return when (uiStatus) {
+            "Open" -> "open"
+            "In Progress" -> "in_review"
+            "Done" -> "pending"
+            "Closed" -> "closed"
+            "Critical" -> "critical"
+            else -> "open"
+        }
+    }
+
     private fun mapResponseToIssue(response: com.sgbdevapps.space360.data.remote.IssueResponse): Issue {
         return Issue(
             id = response.id,
             title = response.title,
             description = response.description ?: "",
             siteId = response.site_id,
-            status = response.status,
+            status = mapStatusToUi(response.status),
             priority = response.priority ?: "Medium",
             type = response.type ?: "defect",
             assignedTo = response.assigned_to ?: "",
@@ -409,7 +432,7 @@ class IssueRepositoryImpl @Inject constructor(
             title = entity.title,
             description = entity.description,
             siteId = entity.siteId,
-            status = entity.status,
+            status = mapStatusToUi(entity.status),
             priority = entity.priority,
             type = entity.type,
             assignedTo = entity.assignedTo,
