@@ -12,8 +12,8 @@ import androidx.compose.ui.unit.dp
 fun StatusBadge(status: String) {
     val color = when (status) {
         "Open" -> Color(0xFF4CAF50)
-        "In Review" -> Color(0xFF2196F3)
-        "Pending" -> Color(0xFFFFA726)
+        "In Progress", "In Review" -> Color(0xFF2196F3)
+        "Done", "Pending" -> Color(0xFFFFA726)
         "Closed" -> Color(0xFF9E9E9E)
         "Critical" -> Color(0xFFD32F2F)
         else -> Color(0xFF9E9E9E)

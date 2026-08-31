@@ -169,11 +169,11 @@ fun IssuesListScreen(
             }
             else -> {
                 if (filteredIssues.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text("No issues found")
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         items(filteredIssues) { issue ->
                             IssueCard(
                                 issue = issue,
