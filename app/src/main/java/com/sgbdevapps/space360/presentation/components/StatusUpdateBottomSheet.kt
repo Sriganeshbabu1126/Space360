@@ -21,9 +21,9 @@ fun StatusUpdateBottomSheet(
     onDismiss: () -> Unit
 ) {
     val validTransitions = when (currentStatus) {
-        "Open" -> listOf("In Progress")
-        "In Progress" -> listOf("Done")
-        else -> emptyList() // Done -> no transitions
+        "Open" -> listOf("In Review")
+        "In Review" -> listOf("Pending")
+        else -> emptyList() // Pending -> no transitions
     }
 
     if (validTransitions.isEmpty()) {
