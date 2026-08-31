@@ -28,10 +28,6 @@ data class SiteEntity(
         androidx.room.Index("status"),
         androidx.room.Index("updatedAt")
     ],
-    foreignKeys = [
-        androidx.room.ForeignKey(
-            entity = SiteEntity::class,
-            parentColumns = ["id"],
             childColumns = ["siteId"],
             onDelete = androidx.room.ForeignKey.CASCADE
         )
