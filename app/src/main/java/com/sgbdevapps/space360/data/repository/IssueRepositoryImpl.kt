@@ -65,7 +65,7 @@ class IssueRepositoryImpl @Inject constructor(
             if (networkConnectivity.isConnected()) {
                 try {
                     val response = issuesService.getIssuesBySite(siteId)
-                    val issues = response.map { mapResponseToIssue(it) }
+                    val issues = response.map { mapResponseToIssue(it).copy(siteId = siteId) }
 
                     issueDao.insertIssues(issues.map { issue ->
                         IssueEntity(

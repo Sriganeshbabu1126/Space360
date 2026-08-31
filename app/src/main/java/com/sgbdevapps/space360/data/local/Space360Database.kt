@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         SyncQueueEntity::class,
         CacheMetadataEntity::class
     ],
-    version = 4
+    version = 5
 )
 abstract class Space360Database : RoomDatabase() {
     abstract fun userDao(): UserDao

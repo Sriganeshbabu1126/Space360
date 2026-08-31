@@ -83,7 +83,8 @@ def list_issues(
     is_admin = user_email == "wincadsg@gmail.com"
     
     if not is_admin:
-        contractor = db.query(Contractor).filter(Contractor.contact == user_email).first()
+        from sqlalchemy import func
+        contractor = db.query(Contractor).filter(func.lower(Contractor.contact) == func.lower(user_email)).first()
         if contractor:
             assigned_site_ids = [assign.site_id for assign in contractor.site_assignments]
             query = query.join(LocationPoint, Issue.location_id == LocationPoint.id) \
