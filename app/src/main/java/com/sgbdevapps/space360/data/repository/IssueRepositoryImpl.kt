@@ -399,7 +399,7 @@ class IssueRepositoryImpl @Inject constructor(
             createdAt = response.created_at,
             updatedAt = response.updated_at,
             comments = response.comments?.map { IssueComment(it.id, it.issue_id, it.user_id, it.user_name, it.text, it.created_at) } ?: emptyList(),
-            photos = response.photos?.map { IssuePhoto(it.id, it.issue_id, it.photo_url, it.uploaded_at) } ?: emptyList()
+            photos = response.photos?.map { IssuePhoto(it.id, it.issue_id, it.photo_url, it.uploaded_at ?: "") } ?: emptyList()
         )
     }
 
