@@ -18,42 +18,39 @@ class IssueRepositoryTest {
     private lateinit var issuesService: IssuesService
 
     @Mock
-    private lateinit var issueDao: IssueDao
+    private lateinit var database: com.sgbdevapps.space360.data.local.Space360Database
 
     @Mock
-    private lateinit var commentDao: IssueCommentDao
-
-    @Mock
-    private lateinit var photoDao: IssuePhotoDao
+    private lateinit var networkConnectivity: com.sgbdevapps.space360.data.network.NetworkConnectivityManager
 
     private lateinit var repository: IssueRepositoryImpl
 
     @Before
     fun setUp() {
         MockitoAnnotations.openMocks(this)
-        repository = IssueRepositoryImpl(issuesService, issueDao, commentDao, photoDao)
+        repository = IssueRepositoryImpl(issuesService, database, networkConnectivity)
     }
 
     @Test
     fun testGetIssuesBySiteSuccess() = runTest {
         val mockResponse = listOf(
             IssueResponse(
-                id = 1,
+                id = "1",
                 title = "Test Issue",
                 description = "Test Description",
-                site_id = 1,
+                site_id = "1",
                 status = "Open",
                 priority = "High",
                 type = "defect",
-                assigned_to = 1,
+                assigned_to = "1",
                 assigned_to_name = "John",
                 created_at = "2026-08-26",
                 updated_at = "2026-08-26"
             )
         )
-        whenever(issuesService.getIssuesBySite(1)).thenReturn(mockResponse)
+        whenever(issuesService.getIssuesBySite("1")).thenReturn(mockResponse)
 
-        val result = repository.getIssuesBySite(1)
+        val result = repository.getIssuesBySite("1")
 
         assert(result.isSuccess)
         assert(result.getOrNull()?.size == 1)
