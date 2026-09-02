@@ -49,9 +49,9 @@ fun MainApp(
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
     Scaffold(
-        topBar = {
+        bottomBar = {
             if (isLoggedIn) {
-                TopNavigationBar(navController)
+                BottomNavigationBar(navController)
             }
         }
     ) { innerPadding ->
@@ -62,7 +62,7 @@ fun MainApp(
 }
 
 @Composable
-fun TopNavigationBar(navController: NavHostController) {
+fun BottomNavigationBar(navController: NavHostController) {
     NavigationBar {
         NavigationBarItem(
             icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
@@ -74,7 +74,7 @@ fun TopNavigationBar(navController: NavHostController) {
             icon = { Icon(Icons.Default.List, contentDescription = "Issues") },
             label = { Text("Issues") },
             selected = false,
-            onClick = { /* TODO */ }
+            onClick = { navController.navigate(Route.IssuesList.route.replace("{siteId}", "all")) }
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.Add, contentDescription = "Capture") },

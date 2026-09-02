@@ -43,6 +43,9 @@ interface IssueDao {
     @Query("SELECT * FROM issues WHERE siteId = :siteId")
     suspend fun getIssuesBySite(siteId: String): List<IssueEntity>
 
+    @Query("SELECT * FROM issues")
+    suspend fun getAllIssues(): List<IssueEntity>
+
     @Query("SELECT * FROM issues WHERE id = :id")
     suspend fun getIssueById(id: String): IssueEntity?
 
