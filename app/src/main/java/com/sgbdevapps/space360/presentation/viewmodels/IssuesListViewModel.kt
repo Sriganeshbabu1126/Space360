@@ -53,7 +53,6 @@ class IssuesListViewModel @Inject constructor(
     ) { allIssues, status, site, priority, query ->
         allIssues.filter { issue ->
             (status == null || issue.status == status) &&
-            (site == null || issue.siteId == site) &&
             (priority == null || issue.priority == priority) &&
             (query.isEmpty() || issue.title.contains(query, ignoreCase = true) || 
              issue.description.contains(query, ignoreCase = true))
