@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -49,9 +52,9 @@ fun MainApp(
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
     Scaffold(
-        bottomBar = {
+        topBar = {
             if (isLoggedIn) {
-                BottomNavigationBar(navController)
+                TopNavigationBar(navController)
             }
         }
     ) { innerPadding ->
@@ -62,8 +65,11 @@ fun MainApp(
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController) {
-    NavigationBar {
+fun TopNavigationBar(navController: NavHostController) {
+    NavigationBar(
+        modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars),
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
         NavigationBarItem(
             icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
             label = { Text("Dashboard") },

@@ -258,14 +258,17 @@ def update_issue(
         # Check if user is an assigned contractor with sufficient privileges
         has_access = False
         if not is_admin:
-            for assignment in issue.assignments:
-                if assignment.contractor.contact and assignment.contractor.contact.lower() == user_email.lower():
-                    if assignment.contractor.access_level in [
-                        AccessLevelEnum.close_and_review, 
-                        AccessLevelEnum.comment_and_change_status
-                    ]:
-                        has_access = True
-                        break
+            if issue.created_by == user_email:
+                has_access = True
+            else:
+                for assignment in issue.assignments:
+                    if assignment.contractor.contact and assignment.contractor.contact.lower() == user_email.lower():
+                        if assignment.contractor.access_level in [
+                            AccessLevelEnum.close_and_review, 
+                            AccessLevelEnum.comment_and_change_status
+                        ]:
+                            has_access = True
+                            break
                         
         if not is_admin and not has_access:
             raise HTTPException(
