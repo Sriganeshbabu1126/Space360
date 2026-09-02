@@ -389,8 +389,8 @@ class IssueRepositoryImpl @Inject constructor(
     private fun mapStatusToUi(backendStatus: String): String {
         return when (backendStatus.lowercase()) {
             "open" -> "Open"
-            "in_review" -> "In Review"
-            "pending" -> "Pending"
+            "in_review" -> "In Progress"
+            "pending" -> "Done"
             "closed" -> "Closed"
             "critical" -> "Critical"
             else -> "Open"
@@ -400,8 +400,8 @@ class IssueRepositoryImpl @Inject constructor(
     private fun mapStatusToBackend(uiStatus: String): String {
         return when (uiStatus) {
             "Open" -> "open"
-            "In Review" -> "in_review"
-            "Pending" -> "pending"
+            "In Progress" -> "in_review"
+            "Done" -> "pending"
             "Closed" -> "closed"
             "Critical" -> "critical"
             else -> "open"

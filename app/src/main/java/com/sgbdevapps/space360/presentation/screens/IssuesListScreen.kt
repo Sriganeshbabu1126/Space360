@@ -46,7 +46,7 @@ fun IssuesListScreen(
         viewModel.loadIssuesBySite(siteId)
     }
 
-    val statuses = listOf("Open", "In Review", "Pending", "Closed")
+    val statuses = listOf("Open", "In Progress", "Done", "Closed")
     val priorities = listOf("High", "Medium", "Low")
 
     Column(modifier = Modifier.fillMaxSize()) {
