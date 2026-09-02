@@ -73,6 +73,34 @@ class SyncWorker @AssistedInject constructor(
                                 issuesService.uploadPhoto(issueId, body)
                             }
                         }
+                        "UPLOAD_PATH" -> {
+                            val pathId = op.payload
+                            val path = database.pathDao().getPathById(pathId) ?: continue
+                            val points = database.pathPointDao().getPointsForPath(pathId)
+                            
+                            val waypointsDto = points.map { 
+                                com.sgbdevapps.space360.data.remote.WaypointDto(
+                                    latitude = it.latitude,
+                                    longitude = it.longitude,
+                                    altitude = it.altitude,
+                                    heading = it.heading,
+                                    accuracy = it.accuracy,
+                                    timestamp = java.time.Instant.ofEpochMilli(it.timestamp).toString()
+                                )
+                            }
+                            
+                            val request = com.sgbdevapps.space360.data.remote.CreatePathRequest(
+                                siteId = path.siteId,
+                                userId = path.userId,
+                                startedAt = java.time.Instant.ofEpochMilli(path.startedAt).toString(),
+                                endedAt = path.endedAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
+                                waypointCount = path.waypointCount,
+                                waypoints = waypointsDto
+                            )
+                            
+                            issuesService.createPath(request)
+                            database.pathDao().updatePathStatus(pathId, "UPLOADED", System.currentTimeMillis())
+                        }
                     }
 
                     syncQueueDao.updateOperation(

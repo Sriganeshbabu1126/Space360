@@ -128,3 +128,7 @@ dependencies {
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
+
+dependencies {
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+}

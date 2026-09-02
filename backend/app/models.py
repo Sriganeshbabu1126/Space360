@@ -309,3 +309,30 @@ class IssueNotification(Base):
     status = Column(String, nullable=False, default="success")
 
     issue = relationship("Issue")
+
+class Path(Base):
+    __tablename__ = "paths"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    site_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)
+    waypoint_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    waypoints = relationship("PathPoint", back_populates="path")
+
+class PathPoint(Base):
+    __tablename__ = "path_points"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    altitude = Column(Float, nullable=True)
+    heading = Column(Float, nullable=True)
+    accuracy = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    
+    path = relationship("Path", back_populates="waypoints")
