@@ -41,6 +41,7 @@ class SyncWorker @AssistedInject constructor(
 
             for (op in pendingOps) {
                 try {
+                    android.util.Log.d("SyncWorker", "Processing op: ${op.operationType}")
                     when (op.operationType) {
                         "UPDATE_ISSUE_STATUS" -> {
                             val data = Json.parseToJsonElement(op.payload).jsonObject
@@ -74,6 +75,7 @@ class SyncWorker @AssistedInject constructor(
                             }
                         }
                         "UPLOAD_PATH" -> {
+                            android.util.Log.d("SyncWorker", "Handling UPLOAD_PATH")
                             val pathId = op.payload
                             val path = database.pathDao().getPathById(pathId) ?: continue
                             val points = database.pathPointDao().getPointsForPath(pathId)
@@ -98,7 +100,9 @@ class SyncWorker @AssistedInject constructor(
                                 waypoints = waypointsDto
                             )
                             
+                            android.util.Log.d("SyncWorker", "Calling createPath API...")
                             issuesService.createPath(request)
+                            android.util.Log.d("SyncWorker", "createPath success!")
                             database.pathDao().updatePathStatus(pathId, "UPLOADED", System.currentTimeMillis())
                         }
                     }
@@ -110,6 +114,7 @@ class SyncWorker @AssistedInject constructor(
                         )
                     )
                 } catch (e: Exception) {
+                    android.util.Log.e("SyncWorker", "Operation failed: ${op.operationType}", e)
                     val updatedOp = op.copy(
                         retryCount = op.retryCount + 1,
                         lastError = e.message,
@@ -125,6 +130,7 @@ class SyncWorker @AssistedInject constructor(
 
             Result.success()
         } catch (e: Exception) {
+            android.util.Log.e("SyncWorker", "Sync queue execution failed", e)
             Result.retry()
         }
     }
