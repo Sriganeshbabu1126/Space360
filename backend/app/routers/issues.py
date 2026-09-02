@@ -256,7 +256,7 @@ def update_issue(
         has_access = False
         if not is_admin:
             for assignment in issue.assignments:
-                if assignment.contractor.contact == user_email:
+                if assignment.contractor.contact and assignment.contractor.contact.lower() == user_email.lower():
                     if assignment.contractor.access_level in [
                         AccessLevelEnum.close_and_review, 
                         AccessLevelEnum.comment_and_change_status
