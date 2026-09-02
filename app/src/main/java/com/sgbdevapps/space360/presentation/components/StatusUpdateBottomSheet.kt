@@ -22,14 +22,13 @@ fun StatusUpdateBottomSheet(
     onDismiss: () -> Unit
 ) {
     val allStatuses = listOf("Open", "In Progress", "Done", "Closed", "Critical")
-    val validTransitions = if (isAdmin) {
-        allStatuses.filter { it != currentStatus }
-    } else {
-        when (currentStatus) {
-            "Open" -> listOf("In Progress")
-            "In Progress" -> listOf("Done")
-            else -> emptyList() // Done -> no transitions
-        }
+    val validTransitions = when (currentStatus) {
+        "Open" -> listOf("In Progress")
+        "In Progress" -> listOf("Done")
+        "Done" -> if (isAdmin) listOf("Closed") else emptyList()
+        "Closed" -> emptyList()
+        "Critical" -> if (isAdmin) listOf("Open", "In Progress", "Closed") else emptyList()
+        else -> emptyList()
     }
 
     if (validTransitions.isEmpty()) {
