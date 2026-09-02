@@ -27,4 +27,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSiteRepository(impl: SiteRepositoryImpl): SiteRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPathRepository(impl: com.sgbdevapps.space360.data.repository.PathRepositoryImpl): com.sgbdevapps.space360.domain.repository.PathRepository
 }

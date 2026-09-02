@@ -72,3 +72,21 @@ data class AddCommentRequest(
 data class ErrorResponse(
     val detail: String
 )
+
+data class CreatePathRequest(
+    @com.google.gson.annotations.SerializedName("site_id") val siteId: String,
+    @com.google.gson.annotations.SerializedName("user_id") val userId: String,
+    @com.google.gson.annotations.SerializedName("started_at") val startedAt: String,
+    @com.google.gson.annotations.SerializedName("ended_at") val endedAt: String?,
+    @com.google.gson.annotations.SerializedName("waypoint_count") val waypointCount: Int,
+    val waypoints: List<WaypointDto>
+)
+
+data class WaypointDto(
+    val latitude: Double,
+    val longitude: Double,
+    val altitude: Double?,
+    val heading: Double?,
+    val accuracy: Float?,
+    val timestamp: String
+)

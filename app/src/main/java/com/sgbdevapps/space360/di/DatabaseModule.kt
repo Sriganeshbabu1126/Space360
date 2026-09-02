@@ -46,4 +46,10 @@ object DatabaseModule {
 
     @Provides
     fun provideCacheMetadataDao(database: Space360Database) = database.cacheMetadataDao()
+
+    @Provides
+    fun providePathDao(database: Space360Database) = database.pathDao()
+
+    @Provides
+    fun providePathPointDao(database: Space360Database) = database.pathPointDao()
 }

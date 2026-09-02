@@ -40,4 +40,9 @@ interface IssuesService {
         @Path("id") issueId: String,
         @Part file: okhttp3.MultipartBody.Part
     ): IssuePhotoResponse
+
+    @POST("api/paths/")
+    suspend fun createPath(
+        @Body request: CreatePathRequest
+    ): okhttp3.ResponseBody
 }
