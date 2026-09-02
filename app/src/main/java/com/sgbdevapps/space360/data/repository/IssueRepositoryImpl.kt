@@ -47,16 +47,17 @@ class IssueRepositoryImpl @Inject constructor(
         private const val CACHE_TTL_ISSUES_MS = 24 * 60 * 60 * 1000L // 24 hours
     }
 
-    override suspend fun getIssuesBySite(siteId: String, forceRefresh: Boolean): Result<List<Issue>> {
+    override suspend fun getIssuesBySite(siteId: String?, forceRefresh: Boolean): Result<List<Issue>> {
         return try {
-            val cacheKey = "issues:site:$siteId"
+            val actualSiteId = siteId ?: "all"
+            val cacheKey = "issues:site:$actualSiteId"
             val now = System.currentTimeMillis()
             
             val cachedMetadata = cacheMetadataDao.getMetadata(cacheKey)
             val cacheIsValid = cachedMetadata?.expiresAt?.let { it > now } ?: false
 
             if (cacheIsValid && !forceRefresh) {
-                val cached = issueDao.getIssuesBySite(siteId)
+                val cached = if (siteId == null) issueDao.getAllIssues() else issueDao.getIssuesBySite(siteId)
                 if (cached.isNotEmpty()) {
                     return Result.success(cached.map { mapEntityToIssue(it) })
                 }
@@ -65,7 +66,7 @@ class IssueRepositoryImpl @Inject constructor(
             if (networkConnectivity.isConnected()) {
                 try {
                     val response = issuesService.getIssuesBySite(siteId)
-                    val issues = response.map { mapResponseToIssue(it).copy(siteId = siteId) }
+                    val issues = response.map { mapResponseToIssue(it) }
 
                     issueDao.insertIssues(issues.map { issue ->
                         IssueEntity(
@@ -95,7 +96,7 @@ class IssueRepositoryImpl @Inject constructor(
 
                     Result.success(issues)
                 } catch (e: Exception) {
-                    val fallback = issueDao.getIssuesBySite(siteId)
+                    val fallback = if (siteId == null) issueDao.getAllIssues() else issueDao.getIssuesBySite(siteId)
                     if (fallback.isNotEmpty()) {
                         Result.success(fallback.map { mapEntityToIssue(it) })
                     } else {
@@ -103,7 +104,7 @@ class IssueRepositoryImpl @Inject constructor(
                     }
                 }
             } else {
-                val cached = issueDao.getIssuesBySite(siteId)
+                val cached = if (siteId == null) issueDao.getAllIssues() else issueDao.getIssuesBySite(siteId)
                 Result.success(cached.map { mapEntityToIssue(it) })
             }
         } catch (e: Exception) {

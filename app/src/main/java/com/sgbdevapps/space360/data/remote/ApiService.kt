@@ -17,7 +17,7 @@ interface SitesService {
 
 interface IssuesService {
     @GET("issues")
-    suspend fun getIssuesBySite(@Query("site_id") siteId: String): List<IssueResponse>
+    suspend fun getIssuesBySite(@Query("site_id") siteId: String? = null): List<IssueResponse>
 
     @GET("issues/{id}")
     suspend fun getIssueById(@Path("id") id: String): IssueResponse

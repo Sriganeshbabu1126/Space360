@@ -93,6 +93,9 @@ def list_issues(
         else:
             return []
             
+    if site_id == "all":
+        site_id = None
+
     if site_id and is_admin:
         # If admin and specific site selected
         query = query.join(LocationPoint, Issue.location_id == LocationPoint.id) \
