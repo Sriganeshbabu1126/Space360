@@ -10,12 +10,15 @@ import com.sgbdevapps.space360.domain.repository.PathRepository
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 class PathRepositoryImpl @Inject constructor(
     private val pathDao: PathDao,
     private val pathPointDao: PathPointDao,
-    private val syncQueueDao: SyncQueueDao
+    private val syncQueueDao: SyncQueueDao,
+    @ApplicationContext private val context: Context
 ) : PathRepository {
 
     override suspend fun startRecordingPath(siteId: String, userId: String): String {
@@ -54,6 +57,7 @@ class PathRepositoryImpl @Inject constructor(
             status = "PENDING"
         )
         syncQueueDao.insertOperation(syncOp)
+        com.sgbdevapps.space360.data.sync.SyncWorker.triggerImmediateSyncOnConnectivity(context)
     }
 
     override suspend fun addWaypoint(
