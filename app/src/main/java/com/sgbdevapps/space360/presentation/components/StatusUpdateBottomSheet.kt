@@ -97,15 +97,17 @@ fun StatusUpdateBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                val context = androidx.compose.ui.platform.LocalContext.current
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text("Close")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = { 
                     onUpdateStatus(selectedStatus)
+                    android.widget.Toast.makeText(context, "Status saved successfully", android.widget.Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }) {
-                    Text("Update")
+                    Text("Save")
                 }
             }
             Spacer(modifier = Modifier.height(32.dp)) // Padding for nav bar
