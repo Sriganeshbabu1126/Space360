@@ -5,7 +5,7 @@ data class Issue(
     val title: String,
     val description: String,
     val siteId: String,
-    val status: String = "Open", // Open, In Review, Pending, Closed, Critical
+    val status: String = "Open", // Open, In Progress, Done, Closed, Critical
     val priority: String = "Medium", // Low, Medium, High, Critical
     val type: String = "defect", // defect, safety_issue, quality_issue, incomplete_work, rework_required
     val assignedTo: String,
