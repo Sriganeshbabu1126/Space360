@@ -49,9 +49,8 @@ data class IssueResponse(
 data class IssueCommentResponse(
     val id: String,
     val issue_id: String,
-    val user_id: String,
-    val user_name: String,
-    val text: String,
+    @SerializedName("author") val user_name: String,
+    @SerializedName("comment_text") val text: String,
     val created_at: String
 )
 
@@ -67,7 +66,7 @@ data class UpdateIssueStatusRequest(
 )
 
 data class AddCommentRequest(
-    val text: String
+    @SerializedName("comment_text") val text: String
 )
 
 data class ErrorResponse(

@@ -334,6 +334,7 @@ class IssueResponse(BaseModel):
     updated_at: datetime
     assignments: List[IssueAssignmentResponse] = []
     photos: List[IssuePhotoResponse] = []
+    comments: List[IssueCommentResponse] = []
 
     class Config:
         from_attributes = True
