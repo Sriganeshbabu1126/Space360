@@ -48,7 +48,13 @@ class AuthViewModel @Inject constructor(
 
     private fun checkLoginStatus() {
         viewModelScope.launch {
-            _isLoggedIn.value = authRepository.isLoggedIn()
+            val loggedIn = authRepository.isLoggedIn()
+            _isLoggedIn.value = loggedIn
+            if (loggedIn) {
+                authRepository.getCurrentUser().getOrNull()?.let {
+                    _authState.value = AuthState.Success(it)
+                }
+            }
         }
     }
 
