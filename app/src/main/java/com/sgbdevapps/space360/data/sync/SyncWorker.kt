@@ -27,13 +27,17 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        android.util.Log.e("SPACE360_DEBUG", "doWork() started")
         if (!networkConnectivity.isConnected()) {
+            android.util.Log.e("SPACE360_DEBUG", "No network connection. Retrying later.")
             return Result.retry()
         }
 
         return try {
             val syncQueueDao = database.syncQueueDao()
             val pendingOps = syncQueueDao.getPendingOperations()
+            
+            android.util.Log.e("SPACE360_DEBUG", "Found ${pendingOps.size} pending operations")
 
             if (pendingOps.isEmpty()) {
                 return Result.success()
@@ -41,7 +45,7 @@ class SyncWorker @AssistedInject constructor(
 
             for (op in pendingOps) {
                 try {
-                    android.util.Log.d("SyncWorker", "Processing op: ${op.operationType}")
+                    android.util.Log.e("SPACE360_DEBUG", "Processing op: ${op.operationType}")
                     when (op.operationType) {
                         "UPDATE_ISSUE_STATUS" -> {
                             val data = Json.parseToJsonElement(op.payload).jsonObject
@@ -75,7 +79,7 @@ class SyncWorker @AssistedInject constructor(
                             }
                         }
                         "UPLOAD_PATH" -> {
-                            android.util.Log.d("SyncWorker", "Handling UPLOAD_PATH")
+                            android.util.Log.e("SPACE360_DEBUG", "Handling UPLOAD_PATH")
                             val pathId = op.payload
                             val path = database.pathDao().getPathById(pathId) ?: continue
                             val points = database.pathPointDao().getPointsForPath(pathId)
@@ -100,9 +104,9 @@ class SyncWorker @AssistedInject constructor(
                                 waypoints = waypointsDto
                             )
                             
-                            android.util.Log.d("SyncWorker", "Calling createPath API...")
+                            android.util.Log.e("SPACE360_DEBUG", "Calling createPath API...")
                             issuesService.createPath(request)
-                            android.util.Log.d("SyncWorker", "createPath success!")
+                            android.util.Log.e("SPACE360_DEBUG", "createPath success!")
                             database.pathDao().updatePathStatus(pathId, "UPLOADED", System.currentTimeMillis())
                         }
                     }
@@ -114,7 +118,11 @@ class SyncWorker @AssistedInject constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("SyncWorker", "Operation failed: ${op.operationType}", e)
+                    android.util.Log.e("SPACE360_DEBUG", "Operation failed: ${op.operationType}", e)
+                    if (e is retrofit2.HttpException) {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        android.util.Log.e("SPACE360_DEBUG", "HTTP Error body: $errorBody")
+                    }
                     val updatedOp = op.copy(
                         retryCount = op.retryCount + 1,
                         lastError = e.message,
@@ -130,7 +138,7 @@ class SyncWorker @AssistedInject constructor(
 
             Result.success()
         } catch (e: Exception) {
-            android.util.Log.e("SyncWorker", "Sync queue execution failed", e)
+            android.util.Log.e("SPACE360_DEBUG", "Sync queue execution failed", e)
             Result.retry()
         }
     }

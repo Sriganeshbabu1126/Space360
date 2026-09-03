@@ -51,12 +51,14 @@ class PathRepositoryImpl @Inject constructor(
         // Queue for sync
         val syncOp = SyncQueueEntity(
             operationType = "UPLOAD_PATH",
-            issueId = pathId, // Reusing issueId field for pathId
-            payload = pathId, // Just store the path ID, worker will fetch details from DB
+            issueId = pathId,
+            payload = pathId,
             createdAt = System.currentTimeMillis(),
             status = "PENDING"
         )
+        android.util.Log.e("SPACE360_DEBUG", "Saving path to DB and queueing for sync: $pathId")
         syncQueueDao.insertOperation(syncOp)
+        android.util.Log.e("SPACE360_DEBUG", "Enqueueing immediate SyncWorker")
         com.sgbdevapps.space360.data.sync.SyncWorker.triggerImmediateSyncOnConnectivity(context)
     }
 

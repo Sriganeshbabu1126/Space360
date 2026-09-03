@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -58,7 +59,7 @@ fun MainApp(
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             NavGraph(navController, isLoggedIn)
         }
     }
@@ -66,7 +67,7 @@ fun MainApp(
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
-    NavigationBar {
+    NavigationBar(modifier = Modifier.fillMaxWidth()) {
         NavigationBarItem(
             icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
             label = { Text("Dashboard") },
