@@ -38,7 +38,11 @@ class PathRepositoryImpl @Inject constructor(
     }
 
     override suspend fun stopRecordingPath(pathId: String) {
-        val path = pathDao.getPathById(pathId) ?: return
+        val path = pathDao.getPathById(pathId)
+        if (path == null) {
+            android.util.Log.e("SPACE360_DEBUG", "stopRecordingPath failed: path not found in DB for $pathId")
+            return
+        }
         val endedAt = System.currentTimeMillis()
         val points = pathPointDao.getPointsForPath(pathId)
         val updatedPath = path.copy(
@@ -47,6 +51,7 @@ class PathRepositoryImpl @Inject constructor(
             status = "COMPLETED"
         )
         pathDao.insertPath(updatedPath)
+        android.util.Log.e("SPACE360_DEBUG", "Path saved to DB: $pathId")
         
         // Queue for sync
         val syncOp = SyncQueueEntity(
@@ -56,9 +61,9 @@ class PathRepositoryImpl @Inject constructor(
             createdAt = System.currentTimeMillis(),
             status = "PENDING"
         )
-        android.util.Log.e("SPACE360_DEBUG", "Saving path to DB and queueing for sync: $pathId")
         syncQueueDao.insertOperation(syncOp)
-        android.util.Log.e("SPACE360_DEBUG", "Enqueueing immediate SyncWorker")
+        android.util.Log.e("SPACE360_DEBUG", "Path queued in SyncQueue: $pathId")
+        
         com.sgbdevapps.space360.data.sync.SyncWorker.triggerImmediateSyncOnConnectivity(context)
     }
 

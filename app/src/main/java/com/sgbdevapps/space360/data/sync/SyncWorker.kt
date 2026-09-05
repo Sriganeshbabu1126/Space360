@@ -28,6 +28,7 @@ class SyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         android.util.Log.e("SPACE360_DEBUG", "doWork() started")
+        android.util.Log.e("SPACE360_DEBUG", "Sync worker triggered")
         if (!networkConnectivity.isConnected()) {
             android.util.Log.e("SPACE360_DEBUG", "No network connection. Retrying later.")
             return Result.retry()
@@ -80,6 +81,7 @@ class SyncWorker @AssistedInject constructor(
                         }
                         "UPLOAD_PATH" -> {
                             android.util.Log.e("SPACE360_DEBUG", "Handling UPLOAD_PATH")
+                            android.util.Log.e("SPACE360_DEBUG", "Uploading path to backend")
                             val pathId = op.payload
                             val path = database.pathDao().getPathById(pathId) ?: continue
                             val points = database.pathPointDao().getPointsForPath(pathId)
@@ -105,9 +107,15 @@ class SyncWorker @AssistedInject constructor(
                             )
                             
                             android.util.Log.e("SPACE360_DEBUG", "Calling createPath API...")
-                            issuesService.createPath(request)
-                            android.util.Log.e("SPACE360_DEBUG", "createPath success!")
-                            database.pathDao().updatePathStatus(pathId, "UPLOADED", System.currentTimeMillis())
+                            try {
+                                issuesService.createPath(request)
+                                android.util.Log.e("SPACE360_DEBUG", "createPath success!")
+                                android.util.Log.e("SPACE360_DEBUG", "Upload complete: success")
+                                database.pathDao().updatePathStatus(pathId, "UPLOADED", System.currentTimeMillis())
+                            } catch (e: Exception) {
+                                android.util.Log.e("SPACE360_DEBUG", "Upload complete: error - ${e.message}")
+                                throw e // Re-throw to be caught by outer try-catch
+                            }
                         }
                     }
 
