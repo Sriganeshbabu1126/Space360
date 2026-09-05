@@ -31,6 +31,8 @@ import com.sgbdevapps.space360.presentation.viewmodels.AuthViewModel
 import com.sgbdevapps.space360.ui.theme.Space360Theme
 import dagger.hilt.android.AndroidEntryPoint
 
+import androidx.navigation.compose.currentBackStackEntryAsState
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +54,7 @@ fun MainApp(
     val navController = rememberNavController()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     
-    val navBackStackEntry by androidx.navigation.compose.currentBackStackEntryAsState(navController)
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
