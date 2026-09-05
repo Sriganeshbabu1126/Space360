@@ -66,17 +66,28 @@ class SyncWorker @AssistedInject constructor(
                             issuesService.addComment(issueId, AddCommentRequest(text))
                         }
                         "ADD_PHOTO" -> {
+                            android.util.Log.e("SPACE360_DEBUG", "Handling ADD_PHOTO")
                             val data = Json.parseToJsonElement(op.payload).jsonObject
                             val issueId = data["issueId"]?.jsonPrimitive?.content ?: continue
                             val filePath = data["filePath"]?.jsonPrimitive?.content ?: continue
                             
                             val file = java.io.File(filePath)
+                            android.util.Log.e("SPACE360_DEBUG", "File exists: ${file.exists()} at $filePath")
                             if (file.exists()) {
                                 val mediaType = "image/*".toMediaTypeOrNull()
                                 val requestFile = file.asRequestBody(mediaType)
                                 val body = okhttp3.MultipartBody.Part.createFormData("file", file.name, requestFile)
                                 
-                                issuesService.uploadPhoto(issueId, body)
+                                android.util.Log.e("SPACE360_DEBUG", "Uploading photo...")
+                                try {
+                                    issuesService.uploadPhoto(issueId, body)
+                                    android.util.Log.e("SPACE360_DEBUG", "Photo upload success!")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("SPACE360_DEBUG", "Photo upload failed: ${e.message}")
+                                    throw e
+                                }
+                            } else {
+                                android.util.Log.e("SPACE360_DEBUG", "File not found! Skipping upload and marking as synced.")
                             }
                         }
                         "UPLOAD_PATH" -> {

@@ -34,10 +34,19 @@ fun PhotoGallery(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
-        // Convert URIs to local file paths or handle them securely
-        // In a real app we would copy them to cache dir first to get a file path
-        // For demonstration, we pass string representations
-        val paths = uris.map { it.toString() }
+        val paths = uris.mapNotNull { uri ->
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val tempFile = java.io.File(context.cacheDir, "upload_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(4)}.jpg")
+                val outputStream = java.io.FileOutputStream(tempFile)
+                inputStream?.copyTo(outputStream)
+                inputStream?.close()
+                outputStream.close()
+                tempFile.absolutePath
+            } catch (e: Exception) {
+                null
+            }
+        }
         if (paths.isNotEmpty()) {
             onAddPhotos(paths)
         }
@@ -84,8 +93,8 @@ fun PhotoGallery(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
-                        // If id is negative, it's pending
-                        if (false) {
+                        // Show pending badge if uploadedAt is empty or "Pending"
+                        if (photo.uploadedAt.isEmpty() || photo.uploadedAt == "Pending") {
                             Badge(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                             ) {

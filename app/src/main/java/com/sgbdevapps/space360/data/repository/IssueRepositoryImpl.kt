@@ -113,7 +113,7 @@ class IssueRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getIssueById(id: String): Result<Issue> {
-        return try {
+        val result = try {
             if (networkConnectivity.isConnected()) {
                 try {
                     val response = issuesService.getIssueById(id)
@@ -155,6 +155,27 @@ class IssueRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+        
+        if (result.isSuccess) {
+            val issue = result.getOrNull()!!
+            val pendingOps = syncQueueDao.getPendingOperations().filter { it.issueId == id && it.operationType == "ADD_PHOTO" }
+            val pendingPhotos = pendingOps.mapNotNull { op ->
+                try {
+                    val payload = Json.parseToJsonElement(op.payload).jsonObject
+                    val path = payload["filePath"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                    com.sgbdevapps.space360.domain.model.IssuePhoto(
+                        id = op.id.toString(),
+                        issueId = id,
+                        photoUrl = path,
+                        uploadedAt = "Pending"
+                    )
+                } catch(e: Exception) { null }
+            }
+            if (pendingPhotos.isNotEmpty()) {
+                return Result.success(issue.copy(photos = issue.photos + pendingPhotos))
+            }
+        }
+        return result
     }
     
     private suspend fun fallbackToCache(id: String, e: Exception): Result<Issue> {
@@ -263,7 +284,7 @@ class IssueRepositoryImpl @Inject constructor(
                 id = java.util.UUID.randomUUID().toString(),
                 issueId = issueId,
                 photoUrl = filePath,
-                uploadedAt = java.time.Instant.now().toString()
+                uploadedAt = "Pending"
             )
             photoDao.insertPhotos(listOf(tempPhoto))
             
@@ -334,15 +355,21 @@ class IssueRepositoryImpl @Inject constructor(
                         )
                     }
                     "ADD_PHOTO" -> {
+                        android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: Handling ADD_PHOTO")
                         val data = Json.parseToJsonElement(op.payload).jsonObject
                         val filePath = data["filePath"]?.jsonPrimitive?.content ?: return false
                         
-                        val file = File(filePath)
+                        val file = java.io.File(filePath)
+                        android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: File exists: ${file.exists()} at $filePath")
                         if (file.exists()) {
                             val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                            val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+                            val body = okhttp3.MultipartBody.Part.createFormData("file", file.name, requestFile)
                             
+                            android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: Uploading photo...")
                             issuesService.uploadPhoto(issueId, body)
+                            android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: Photo upload success!")
+                        } else {
+                            android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: File not found! Skipping upload and marking as synced.")
                         }
                     }
                 }
