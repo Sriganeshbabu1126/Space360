@@ -362,7 +362,7 @@ class IssueRepositoryImpl @Inject constructor(
                         val file = java.io.File(filePath)
                         android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: File exists: ${file.exists()} at $filePath")
                         if (file.exists()) {
-                            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                            val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
                             val body = okhttp3.MultipartBody.Part.createFormData("file", file.name, requestFile)
                             
                             android.util.Log.e("SPACE360_DEBUG", "syncSingleOperation: Uploading photo...")
