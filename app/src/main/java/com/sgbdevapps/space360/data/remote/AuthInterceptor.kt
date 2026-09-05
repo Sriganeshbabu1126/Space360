@@ -2,11 +2,9 @@ package com.sgbdevapps.space360.data.remote
 
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
-
 import com.google.android.gms.tasks.Tasks
 
 class AuthInterceptor @Inject constructor(
@@ -16,34 +14,64 @@ class AuthInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Get Firebase ID token synchronously
         val idToken = try {
             val user = firebaseAuth.currentUser
             if (user != null) {
+                Log.d("AuthInterceptor", "Fetching token for URL: ${originalRequest.url}")
                 val task = user.getIdToken(false)
-                Tasks.await(task).token ?: ""
+                val token = Tasks.await(task).token ?: ""
+                Log.d("AuthInterceptor", "Token fetched successfully. Length: ${token.length}")
+                token
             } else {
+                Log.e("AuthInterceptor", "User is NULL in AuthInterceptor for URL: ${originalRequest.url}")
                 ""
             }
         } catch (e: Exception) {
-            Log.e("AuthInterceptor", "Failed to get token", e)
+            Log.e("AuthInterceptor", "Failed to get token for URL: ${originalRequest.url}", e)
             ""
         }
 
-        // Inject Bearer token
         val requestWithToken = originalRequest.newBuilder()
             .header("Authorization", "Bearer $idToken")
             .build()
+            
+        Log.d("AuthInterceptor", "Proceeding with Auth header: Bearer ${if (idToken.isNotEmpty()) "[HIDDEN]" else "[EMPTY]"}")
 
-        val response = chain.proceed(requestWithToken)
+        var response = chain.proceed(requestWithToken)
 
-        // On 401, logout
         if (response.code == 401) {
-            Log.e("AuthInterceptor", "Unauthorized (401) — logging out")
-            firebaseAuth.signOut()
-            // TODO: Notify ViewModels of logout (use EventBus or StateFlow)
+            Log.e("AuthInterceptor", "Unauthorized (401) on ${originalRequest.url}. Forcing token refresh...")
+            response.close() 
+            
+            val refreshedToken = try {
+                val user = firebaseAuth.currentUser
+                if (user != null) {
+                    val task = user.getIdToken(true) // FORCE REFRESH
+                    val token = Tasks.await(task).token ?: ""
+                    Log.d("AuthInterceptor", "Forced refresh successful. Length: ${token.length}")
+                    token
+                } else {
+                    ""
+                }
+            } catch (e: Exception) {
+                Log.e("AuthInterceptor", "Failed to force refresh token", e)
+                ""
+            }
+            
+            if (refreshedToken.isNotEmpty()) {
+                val retryRequest = originalRequest.newBuilder()
+                    .header("Authorization", "Bearer $refreshedToken")
+                    .build()
+                response = chain.proceed(retryRequest)
+            }
+            
+            if (response.code == 401) {
+                Log.e("AuthInterceptor", "Still 401 after refresh. Preserving session...")
+            }
         }
 
         return response
     }
+
 }
+
