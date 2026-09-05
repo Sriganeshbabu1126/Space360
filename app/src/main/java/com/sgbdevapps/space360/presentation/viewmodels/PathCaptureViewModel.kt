@@ -76,6 +76,9 @@ class PathCaptureViewModel @Inject constructor(
         }
     }
 
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving
+
     fun stopRecording() {
         viewModelScope.launch {
             _isRecording.value = false
@@ -83,7 +86,25 @@ class PathCaptureViewModel @Inject constructor(
             waypointJob?.cancel()
 
             currentPathId?.let { pathId ->
+                _isSaving.value = true
                 pathRepository.stopRecordingPath(pathId)
+                
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    val workManager = androidx.work.WorkManager.getInstance(getApplication())
+                    val liveData = workManager.getWorkInfosForUniqueWorkLiveData("space360_sync_queue_immediate")
+                    
+                    val observer = object : androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> {
+                        override fun onChanged(workInfos: List<androidx.work.WorkInfo>) {
+                            if (workInfos.isNullOrEmpty()) return
+                            val info = workInfos.first()
+                            if (info.state.isFinished) {
+                                _isSaving.value = false
+                                liveData.removeObserver(this)
+                            }
+                        }
+                    }
+                    liveData.observeForever(observer)
+                }
             }
             
             val intent = Intent(getApplication(), GpsTrackingService::class.java).apply {

@@ -32,6 +32,7 @@ fun CaptureScreen(
     viewModel: PathCaptureViewModel = hiltViewModel()
 ) {
     val isRecording by viewModel.isRecording.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
     val waypointCount by viewModel.waypointCount.collectAsState()
     val elapsedTime by viewModel.elapsedTimeSeconds.collectAsState()
 
@@ -66,7 +67,18 @@ fun CaptureScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isRecording) {
+        if (isSaving) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Saving Path...", style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        } else if (isRecording) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
