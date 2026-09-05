@@ -74,7 +74,7 @@ class SyncWorker @AssistedInject constructor(
                             val file = java.io.File(filePath)
                             android.util.Log.e("SPACE360_DEBUG", "File exists: ${file.exists()} at $filePath")
                             if (file.exists()) {
-                                val mediaType = "image/*".toMediaTypeOrNull()
+                                val mediaType = "image/jpeg".toMediaTypeOrNull()
                                 val requestFile = file.asRequestBody(mediaType)
                                 val body = okhttp3.MultipartBody.Part.createFormData("file", file.name, requestFile)
                                 
