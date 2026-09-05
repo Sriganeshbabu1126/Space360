@@ -33,6 +33,7 @@ fun CaptureScreen(
 ) {
     val isRecording by viewModel.isRecording.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    val saveStatus by viewModel.saveStatus.collectAsState()
     val waypointCount by viewModel.waypointCount.collectAsState()
     val elapsedTime by viewModel.elapsedTimeSeconds.collectAsState()
 
@@ -67,15 +68,17 @@ fun CaptureScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isSaving) {
+        if (isSaving || saveStatus != null) {
             Box(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Saving Path...", style = MaterialTheme.typography.titleLarge)
+                    if (isSaving) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    Text(saveStatus ?: "Saving Path...", style = MaterialTheme.typography.titleLarge)
                 }
             }
         } else if (isRecording) {

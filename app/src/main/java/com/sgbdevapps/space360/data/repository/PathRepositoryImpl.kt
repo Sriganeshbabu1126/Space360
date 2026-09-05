@@ -23,6 +23,7 @@ class PathRepositoryImpl @Inject constructor(
 
     override suspend fun startRecordingPath(siteId: String, userId: String): String {
         val pathId = UUID.randomUUID().toString()
+        android.util.Log.e("SPACE360_DEBUG", "Creating PathEntity: [$siteId, $userId, startedAt, endedAt, waypointCount]")
         val path = PathEntity(
             id = pathId,
             siteId = siteId,
@@ -33,7 +34,14 @@ class PathRepositoryImpl @Inject constructor(
             uploadedAt = null,
             status = "RECORDING"
         )
-        pathDao.insertPath(path)
+        android.util.Log.e("SPACE360_DEBUG", "Inserting into pathDao...")
+        try {
+            pathDao.insertPath(path)
+            android.util.Log.e("SPACE360_DEBUG", "Path inserted successfully with ID: $pathId")
+        } catch(e: Exception) {
+            android.util.Log.e("SPACE360_DEBUG", "Failed to insert path: ${e.message}")
+            throw e
+        }
         return pathId
     }
 
@@ -50,7 +58,16 @@ class PathRepositoryImpl @Inject constructor(
             waypointCount = points.size,
             status = "COMPLETED"
         )
-        pathDao.insertPath(updatedPath)
+        android.util.Log.e("SPACE360_DEBUG", "Creating PathEntity: [${updatedPath.siteId}, ${updatedPath.userId}, ${updatedPath.startedAt}, ${updatedPath.endedAt}, ${updatedPath.waypointCount}]")
+        android.util.Log.e("SPACE360_DEBUG", "Inserting into pathDao...")
+        try {
+            pathDao.insertPath(updatedPath)
+            android.util.Log.e("SPACE360_DEBUG", "Path inserted successfully with ID: $pathId")
+        } catch(e: Exception) {
+            android.util.Log.e("SPACE360_DEBUG", "Failed to insert path: ${e.message}")
+            throw e
+        }
+        
         android.util.Log.e("SPACE360_DEBUG", "Path saved to DB: $pathId")
         
         // Queue for sync
@@ -85,7 +102,19 @@ class PathRepositoryImpl @Inject constructor(
             accuracy = acc,
             timestamp = System.currentTimeMillis()
         )
-        pathPointDao.insertPathPoint(point)
+        
+        android.util.Log.e("SPACE360_DEBUG", "Inserting 1 waypoint into pathPointDao... lat/lng/timestamp")
+        try {
+            pathPointDao.insertPathPoint(point)
+            android.util.Log.e("SPACE360_DEBUG", "Waypoint inserted successfully")
+            
+            // Also log: "Waypoint captured: [count] - lat/lng/timestamp"
+            val points = pathPointDao.getPointsForPath(pathId)
+            android.util.Log.e("SPACE360_DEBUG", "Waypoint captured: ${points.size} - $lat/$lng/${point.timestamp}")
+        } catch (e: Exception) {
+            android.util.Log.e("SPACE360_DEBUG", "Failed to insert waypoint: ${e.message}")
+            throw e
+        }
     }
 
     override fun observeWaypointCount(pathId: String): Flow<Int> {
