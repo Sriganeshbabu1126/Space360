@@ -51,10 +51,13 @@ fun MainApp(
 ) {
     val navController = rememberNavController()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    
+    val navBackStackEntry by androidx.navigation.compose.currentBackStackEntryAsState(navController)
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         bottomBar = {
-            if (isLoggedIn) {
+            if (currentRoute != null && currentRoute != Route.Login.route) {
                 BottomNavigationBar(navController)
             }
         }
