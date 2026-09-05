@@ -43,6 +43,8 @@ class PathCaptureViewModel @Inject constructor(
             val pathId = pathRepository.startRecordingPath(siteId, userId)
             currentPathId = pathId
 
+            android.util.Log.e("SPACE360_DEBUG", "Recording started at ${System.currentTimeMillis()}")
+
             _isRecording.value = true
             _elapsedTimeSeconds.value = 0
             
@@ -78,6 +80,8 @@ class PathCaptureViewModel @Inject constructor(
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving
+    private val _saveStatus = MutableStateFlow<String?>(null)
+    val saveStatus: StateFlow<String?> = _saveStatus
 
     fun stopRecording() {
         viewModelScope.launch {
@@ -85,9 +89,19 @@ class PathCaptureViewModel @Inject constructor(
             timerJob?.cancel()
             waypointJob?.cancel()
 
+            android.util.Log.e("SPACE360_DEBUG", "Recording stopped. Total waypoints: ${_waypointCount.value}")
+
             currentPathId?.let { pathId ->
                 _isSaving.value = true
-                pathRepository.stopRecordingPath(pathId)
+                _saveStatus.value = "Saving Path..."
+                android.util.Log.e("SPACE360_DEBUG", "Saving path to Room database...")
+                try {
+                    pathRepository.stopRecordingPath(pathId)
+                    android.util.Log.e("SPACE360_DEBUG", "Path saved with ID: $pathId")
+                    _saveStatus.value = "Path Saved Successfully"
+                } catch(e: Exception) {
+                    _saveStatus.value = "Failed to Save Path: ${e.message}"
+                }
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     val workManager = androidx.work.WorkManager.getInstance(getApplication())
@@ -100,6 +114,11 @@ class PathCaptureViewModel @Inject constructor(
                             if (info.state.isFinished) {
                                 _isSaving.value = false
                                 liveData.removeObserver(this)
+                                // Clear status after a short delay so user can read it
+                                viewModelScope.launch {
+                                    delay(2000)
+                                    _saveStatus.value = null
+                                }
                             }
                         }
                     }
