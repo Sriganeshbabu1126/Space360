@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="300dp"
+    android:viewportWidth="400"
+    android:viewportHeight="300">
+
+    <!-- Background -->
+    <path android:fillColor="#F5F5F5"
+        android:pathData="M0,0 L400,0 L400,300 L0,300 Z"/>
+
+    <!-- Outer walls -->
+    <path android:strokeColor="#9E9E9E" android:strokeWidth="4"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M30,30 L370,30 L370,270 L30,270 Z"/>
+
+    <!-- Room dividers -->
+    <path android:strokeColor="#BDBDBD" android:strokeWidth="2"
+        android:pathData="M200,30 L200,270"/>
+    <path android:strokeColor="#BDBDBD" android:strokeWidth="2"
+        android:pathData="M30,150 L200,150"/>
+
+    <!-- Door arc -->
+    <path android:strokeColor="#78909C" android:strokeWidth="2"
+        android:pathData="M190,30 L200,30"/>
+    <path android:strokeColor="#78909C" android:strokeWidth="2"
+        android:pathData="M190,30 Q200,40 200,30"/>
+
+    <!-- Label stub lines (left room) -->
+    <path android:strokeColor="#E0E0E0" android:strokeWidth="2"
+        android:pathData="M60,80 L150,80"/>
+    <path android:strokeColor="#E0E0E0" android:strokeWidth="2"
+        android:pathData="M60,100 L130,100"/>
+
+    <!-- Label stub lines (right room) -->
+    <path android:strokeColor="#E0E0E0" android:strokeWidth="2"
+        android:pathData="M240,80 L340,80"/>
+    <path android:strokeColor="#E0E0E0" android:strokeWidth="2"
+        android:pathData="M240,100 L310,100"/>
+
+    <!-- North indicator -->
+    <path android:strokeColor="#78909C" android:strokeWidth="3"
+        android:pathData="M355,55 L355,70"/>
+    <path android:strokeColor="#78909C" android:strokeWidth="2"
+        android:fillColor="#78909C"
+        android:pathData="M350,60 L355,48 L360,60 Z"/>
+</vector>

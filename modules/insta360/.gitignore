@@ -1,0 +1,8 @@
+output/
+logs/
+.env
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/

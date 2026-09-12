@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+google-cloud-storage
+pytest
+httpx
+ffmpeg-python

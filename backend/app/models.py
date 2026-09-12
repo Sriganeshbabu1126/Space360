@@ -1,0 +1,385 @@
+import uuid
+from datetime import datetime
+from sqlalchemy import (Column, String, Float, Boolean, 
+                        DateTime, Text, JSON, ForeignKey, Enum, Integer, BigInteger)
+from sqlalchemy.orm import relationship
+from app.database import Base
+import enum
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+class StatusEnum(str, enum.Enum):
+    active = "active"
+    archived = "archived"
+
+class AIStatusEnum(str, enum.Enum):
+    pending = "pending"
+    processing = "processing"
+    done = "done"
+    error = "error"
+
+class SeverityEnum(str, enum.Enum):
+    info = "info"
+    warning = "warning"
+    critical = "critical"
+
+class AccessLevelEnum(str, enum.Enum):
+    view_only = "view_only"
+    comment_and_change_status = "comment_and_change_status"
+    create_issue = "create_issue"
+    close_and_review = "close_and_review"
+
+class IssueStatusEnum(str, enum.Enum):
+    open = "open"
+    in_review = "in_review"
+    pending = "pending"
+    closed = "closed"
+    critical = "critical"
+
+class IssueTypeEnum(str, enum.Enum):
+    defect = "defect"
+    safety_issue = "safety_issue"
+    quality_issue = "quality_issue"
+    incomplete_work = "incomplete_work"
+    rework_required = "rework_required"
+
+class Site(Base):
+    __tablename__ = "sites"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    address = Column(String)
+    gps_bounds = Column(JSON)
+    org_id = Column(String)
+    created_by = Column(String, nullable=False)
+    status = Column(Enum(StatusEnum), default=StatusEnum.active)
+    description = Column(Text, nullable=True)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    floor_plans = relationship("FloorPlan", back_populates="site",
+                               cascade="all, delete-orphan")
+
+
+class FloorPlan(Base):
+    __tablename__ = "floor_plans"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=False)
+    label = Column(String, nullable=False)
+    image_url = Column(String)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    site = relationship("Site", back_populates="floor_plans")
+    location_points = relationship("LocationPoint", 
+                                   back_populates="floor_plan",
+                                   cascade="all, delete-orphan")
+
+
+class LocationPoint(Base):
+    __tablename__ = "location_points"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    floor_plan_id = Column(String, ForeignKey("floor_plans.id"), 
+                           nullable=False)
+    label = Column(String, nullable=False)
+    pin_x = Column(Float)
+    pin_y = Column(Float)
+    gps_lat = Column(Float)
+    gps_lng = Column(Float)
+    heading = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    floor_plan = relationship("FloorPlan", 
+                              back_populates="location_points")
+    capture_sessions = relationship("CaptureSession", 
+                                    back_populates="location_point",
+                                    cascade="all, delete-orphan")
+
+
+class CaptureSession(Base):
+    __tablename__ = "capture_sessions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    location_point_id = Column(String, 
+                               ForeignKey("location_points.id"), 
+                               nullable=False)
+    captured_at = Column(DateTime, default=datetime.utcnow)
+    image_url = Column(String)
+    thumbnail_url = Column(String)
+    captured_by = Column(String, nullable=False)
+    device_model = Column(String)
+    gps_lat = Column(Float)
+    gps_lng = Column(Float)
+    ai_status = Column(Enum(AIStatusEnum), 
+                       default=AIStatusEnum.pending)
+    ai_summary = Column(Text)
+    ai_changes = Column(JSON)
+    # Video sequence fields
+    video_url = Column(String, nullable=True)
+    fps = Column(Integer, default=2)
+    total_frames = Column(Integer, nullable=True)
+    processing_status = Column(String, default="pending")  # pending, complete, failed
+    error_message = Column(Text, nullable=True)
+    processing_completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    location_point = relationship("LocationPoint", 
+                                  back_populates="capture_sessions")
+    voice_notes = relationship("VoiceNote", 
+                               back_populates="session",
+                               cascade="all, delete-orphan")
+    annotations = relationship("Annotation", 
+                               back_populates="session",
+                               cascade="all, delete-orphan")
+    frames = relationship("CaptureFrame", 
+                          back_populates="session",
+                          cascade="all, delete-orphan",
+                          order_by="CaptureFrame.frame_number")
+
+    @property
+    def location_label(self):
+        return self.location_point.label if self.location_point else "Unknown Location"
+
+    @property
+    def site_name(self):
+        if self.location_point and self.location_point.floor_plan and self.location_point.floor_plan.site:
+            return self.location_point.floor_plan.site.name
+        return "Unknown Site"
+
+
+class CaptureFrame(Base):
+    __tablename__ = "capture_frames"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("capture_sessions.id", ondelete="CASCADE"), nullable=False)
+    frame_number = Column(Integer, nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    frame_url = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("CaptureSession", back_populates="frames")
+
+
+
+class VoiceNote(Base):
+    __tablename__ = "voice_notes"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("capture_sessions.id"), 
+                        nullable=False)
+    audio_url = Column(String)
+    transcript = Column(Text)
+    ai_tags = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("CaptureSession", 
+                           back_populates="voice_notes")
+
+
+class Annotation(Base):
+    __tablename__ = "annotations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("capture_sessions.id"), 
+                        nullable=False)
+    created_by = Column(String, nullable=False)
+    yaw = Column(Float)
+    pitch = Column(Float)
+    comment = Column(Text)
+    severity = Column(Enum(SeverityEnum), default=SeverityEnum.info)
+    resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("CaptureSession", 
+                           back_populates="annotations")
+
+
+class ContractorSiteAssignment(Base):
+    __tablename__ = "contractor_site_assignments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    contractor_id = Column(String, ForeignKey("contractors.id", ondelete="CASCADE"), nullable=False)
+    site_id = Column(String, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+    contractor = relationship("Contractor", back_populates="site_assignments")
+    site = relationship("Site")
+
+
+class Contractor(Base):
+    __tablename__ = "contractors"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    company = Column(String)
+    trade = Column(String)
+    designation = Column(String)
+    contact = Column(String)
+    access_level = Column(Enum(AccessLevelEnum), default=AccessLevelEnum.view_only)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assignments = relationship("IssueAssignment", back_populates="contractor", cascade="all, delete-orphan")
+    site_assignments = relationship("ContractorSiteAssignment", back_populates="contractor", cascade="all, delete-orphan")
+
+    @property
+    def sites(self):
+        return [assignment.site for assignment in self.site_assignments if assignment.site]
+
+
+class Issue(Base):
+    __tablename__ = "issues"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    status = Column(Enum(IssueStatusEnum), default=IssueStatusEnum.open)
+    issue_type = Column(Enum(IssueTypeEnum), default=IssueTypeEnum.defect)
+    location_id = Column(String, ForeignKey("location_points.id"), nullable=False)
+    session_a_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    session_b_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    frame_a_id = Column(String, ForeignKey("capture_frames.id"), nullable=True)
+    frame_b_id = Column(String, ForeignKey("capture_frames.id"), nullable=True)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    location = relationship("LocationPoint")
+    session_a = relationship("CaptureSession", foreign_keys=[session_a_id])
+    session_b = relationship("CaptureSession", foreign_keys=[session_b_id])
+    frame_a = relationship("CaptureFrame", foreign_keys=[frame_a_id])
+    frame_b = relationship("CaptureFrame", foreign_keys=[frame_b_id])
+    assignments = relationship("IssueAssignment", back_populates="issue", cascade="all, delete-orphan")
+    comments = relationship("IssueComment", back_populates="issue", cascade="all, delete-orphan", order_by="IssueComment.created_at")
+    photos = relationship("IssuePhoto", back_populates="issue", cascade="all, delete-orphan", order_by="IssuePhoto.created_at")
+
+    @property
+    def location_name(self):
+        if self.location and self.location.floor_plan:
+            return f"{self.location.floor_plan.label} - {self.location.label}"
+        elif self.location:
+            return self.location.label
+        return "Unknown Location"
+
+
+class IssueAssignment(Base):
+    __tablename__ = "issue_assignments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    contractor_id = Column(String, ForeignKey("contractors.id"), nullable=False)
+    assigned_by = Column(String, nullable=False)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="assignments")
+    contractor = relationship("Contractor", back_populates="assignments")
+
+class IssueComment(Base):
+    __tablename__ = "issue_comments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    author = Column(String, nullable=False)
+    comment_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="comments")
+
+class IssuePhoto(Base):
+    __tablename__ = "issue_photos"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    photo_url = Column(String, nullable=False)
+    uploaded_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    issue = relationship("Issue", back_populates="photos")
+
+class IssueNotification(Base):
+    __tablename__ = "issue_notifications"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    issue_id = Column(String, ForeignKey("issues.id"), nullable=False)
+    sent_to = Column(String, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, nullable=False, default="success")
+
+    issue = relationship("Issue")
+
+class Path(Base):
+    __tablename__ = "paths"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    site_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)
+    waypoint_count = Column(Integer, default=0)
+    
+    # Metadata for Video Sync
+    pathStartTimestampNanos = Column(BigInteger, nullable=True)
+    cameraStartTimestampNanos = Column(BigInteger, nullable=True)
+    clockOffsetNanos = Column(BigInteger, nullable=True)
+    recordingSessionJson = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    waypoints = relationship("PathPoint", back_populates="path")
+
+class PathPoint(Base):
+    __tablename__ = "path_points"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    altitude = Column(Float, nullable=True)
+    heading = Column(Float, nullable=True)
+    accuracy = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    
+    path = relationship("Path", back_populates="waypoints")
+
+
+class VideoUpload(Base):
+    __tablename__ = "video_uploads"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    user_id = Column(String, nullable=False)
+    file_size_bytes = Column(Integer)
+    duration_seconds = Column(Float)
+    fps = Column(Integer)
+    resolution = Column(String(50))
+    codec = Column(String(50))
+    gcs_url = Column(String(500))
+    upload_status = Column(String, default="pending")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    frames = relationship("VideoFrame", back_populates="video")
+
+class VideoFrame(Base):
+    __tablename__ = "video_frames"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    video_id = Column(String, ForeignKey("video_uploads.id"), nullable=False)
+    frame_number = Column(Integer, nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    thumbnail_url = Column(String(500))
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    video = relationship("VideoUpload", back_populates="frames")
+
+class FrameGpsCorrelation(Base):
+    __tablename__ = "frame_gps_correlations"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    waypoint_id = Column(String, ForeignKey("path_points.id"), nullable=False)
+    frame_id = Column(String, ForeignKey("video_frames.id"), nullable=False)
+    timestamp_offset_ms = Column(Integer)
+    confidence = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
