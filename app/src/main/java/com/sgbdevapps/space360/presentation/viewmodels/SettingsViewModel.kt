@@ -1,6 +1,8 @@
 package com.sgbdevapps.space360.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
+import com.sgbdevapps.space360.data.repository.UserManagementRepository
+import com.sgbdevapps.space360.domain.repository.AuthRepository
 import androidx.lifecycle.viewModelScope
 import com.sgbdevapps.space360.data.datastore.UserPreferences
 import com.sgbdevapps.space360.data.model.ColorScheme
@@ -24,7 +26,9 @@ sealed class BluetoothStatus {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val bluetoothManager: BluetoothManager
+    private val bluetoothManager: BluetoothManager,
+    private val userManagementRepository: UserManagementRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _colorScheme = MutableStateFlow(ColorScheme.SUNSET)
@@ -39,7 +43,16 @@ class SettingsViewModel @Inject constructor(
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
 
+    private val _currentUserRole = MutableStateFlow<String?>("Contractor")
+    val currentUserRole: StateFlow<String?> = _currentUserRole.asStateFlow()
+
     init {
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser().getOrNull()
+            if (user != null) {
+                _currentUserRole.value = user.role
+            }
+        }
         viewModelScope.launch {
             userPreferences.selectedColorScheme.collect { schemeName ->
                 val scheme = try {
@@ -96,8 +109,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+
     fun disconnectBluetooth() {
         bluetoothManager.disconnect()
         _bluetoothStatus.value = BluetoothStatus.DISCONNECTED
+    }
+
+    fun createNewUser(name: String, email: String, role: String) {
+        viewModelScope.launch {
+            userManagementRepository.createNewUser(name, email, role)
+        }
     }
 }

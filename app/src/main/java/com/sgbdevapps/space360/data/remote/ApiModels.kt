@@ -91,3 +91,9 @@ data class WaypointDto(
     val accuracy: Float?,
     val timestamp: String
 )
+
+data class NotifyUserRequest(
+    val name: String,
+    val email: String,
+    val temp_password: String
+)

@@ -3,6 +3,8 @@ package com.sgbdevapps.space360.presentation.viewmodels
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
+import timber.log.Timber
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sgbdevapps.space360.data.remote.IssuesService
@@ -17,9 +19,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 @HiltViewModel
 class IssueDetailViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val api: IssuesService,
+    private val issueRepository: com.sgbdevapps.space360.domain.repository.IssueRepository,
     private val offlineSyncManager: OfflineSyncManager
 ) : ViewModel() {
     
@@ -33,6 +40,13 @@ class IssueDetailViewModel @Inject constructor(
     
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
+    
+
+    private val _isUploadingPhoto = MutableStateFlow(false)
+    val isUploadingPhoto = _isUploadingPhoto.asStateFlow()
+    
+    private val _photoUploadError = MutableStateFlow<String?>(null)
+    val photoUploadError = _photoUploadError.asStateFlow()
     
     private var currentIssueId: String? = null
     
@@ -117,26 +131,40 @@ class IssueDetailViewModel @Inject constructor(
         }
     }
     
-    fun uploadPhotoUri(uri: Uri) {
-        val issueId = currentIssueId ?: return
+    fun addPhotoToIssue(issueId: String, photoUri: Uri) {
         viewModelScope.launch {
             try {
-                offlineSyncManager.queueAction("upload_photo", "issue", issueId, uri.toString())
-                
-                // Optimistic UI update
-                val current = _issue.value ?: return@launch
-                val newPhotos = current.photos.toMutableList()
-                newPhotos.add(
-                    com.sgbdevapps.space360.domain.model.IssuePhoto(
-                        id = "temp_${System.currentTimeMillis()}",
-                        issueId = issueId,
-                        photoUrl = uri.toString(),
-                        uploadedAt = "Just now"
-                    )
+                _isUploadingPhoto.value = true
+                Timber.d("PHOTO_DEBUG: starting upload issueId=$issueId uri=$photoUri")
+
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(photoUri)
+                    ?: throw Exception("Cannot open image stream")
+
+                val bytes = inputStream.readBytes()
+                inputStream.close()
+
+                val requestBody = okhttp3.RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
+                val multipart = okhttp3.MultipartBody.Part.createFormData(
+                    "photo", "photo_${System.currentTimeMillis()}.jpg", requestBody
                 )
-                _issue.value = current.copy(photos = newPhotos)
+
+                api.uploadPhoto(issueId, multipart)
+
+                Timber.d("PHOTO_DEBUG: upload successful — refreshing issue")
+
+                val result = issueRepository.getIssueById(issueId)
+                if (result.isSuccess) {
+                    _issue.value = result.getOrNull()
+                }
+
+                Timber.i("Photo uploaded + issue refreshed for $issueId")
+
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to queue photo upload", e)
+                Timber.e(e, "PHOTO_DEBUG: upload FAILED — ${e.message}")
+                _photoUploadError.value = e.message ?: "Photo upload failed"
+            } finally {
+                _isUploadingPhoto.value = false
             }
         }
     }

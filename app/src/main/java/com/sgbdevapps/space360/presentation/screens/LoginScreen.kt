@@ -21,12 +21,19 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
 
     val authState by viewModel.authState.collectAsState()
+    val mustChangePassword by viewModel.mustChangePassword.collectAsState()
 
     LaunchedEffect(authState) {
         if (authState is AuthViewModel.AuthState.Success) {
             navController.navigate(Route.Dashboard.route) {
                 popUpTo(Route.Login.route) { inclusive = true }
             }
+        }
+    }
+
+    LaunchedEffect(mustChangePassword) {
+        if (mustChangePassword) {
+            navController.navigate("change_password")
         }
     }
 

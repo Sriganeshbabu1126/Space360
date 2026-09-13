@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import com.sgbdevapps.space360.presentation.screens.LoginScreen
+import com.sgbdevapps.space360.presentation.screens.ChangePasswordScreen
 import com.sgbdevapps.space360.presentation.screens.DashboardScreen
 import com.sgbdevapps.space360.presentation.screens.IssuesScreen
 import com.sgbdevapps.space360.presentation.screens.IssueDetailScreen
@@ -93,6 +94,15 @@ fun NavGraph(
                 },
                 onBackClick = {
                     navController.popBackStack()
+                }
+            )
+        }
+        composable("change_password") {
+            ChangePasswordScreen(
+                onPasswordChanged = {
+                    navController.navigate(Route.Dashboard.route) {
+                        popUpTo(Route.Login.route) { inclusive = true }
+                    }
                 }
             )
         }

@@ -5,6 +5,9 @@ import retrofit2.http.*
 interface AuthService {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
+    
+    @POST("admin/notify-new-user")
+    suspend fun notifyNewUser(@Body request: NotifyUserRequest): retrofit2.Response<Unit>
 }
 
 interface SitesService {
