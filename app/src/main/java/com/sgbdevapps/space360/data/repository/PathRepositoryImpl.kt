@@ -125,4 +125,14 @@ class PathRepositoryImpl @Inject constructor(
         // Simple discard by setting status to DISCARDED
         pathDao.updatePathStatus(pathId, "DISCARDED", null)
     }
+
+    override suspend fun updatePathWithCameraMetadata(
+        pathId: String,
+        cameraStartNanos: Long?,
+        cameraEndNanos: Long?,
+        clockOffsetNanos: Long?,
+        sessionJson: String
+    ) {
+        // Mock implementation
+    }
 }

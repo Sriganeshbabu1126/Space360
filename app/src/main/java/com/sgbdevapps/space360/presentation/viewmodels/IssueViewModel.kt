@@ -85,7 +85,7 @@ class IssueViewModel @Inject constructor(
                     try {
                         val pending = offlineSyncManager.getPendingItemsForResource("issue", it.id)
                         pending.forEach { action ->
-                            if (action.action == "update_status") {
+                            if (action.operationType == "update_status") {
                                 try {
                                     val req = Json.decodeFromString<UpdateIssueStatusRequest>(action.payload)
                                     finalStatus = req.status

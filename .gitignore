@@ -16,3 +16,5 @@ local.properties
 
 app/google-services.json
 ".git_corrupted/" 
+"mobile/android/app/google-services.json" 
+.git_corrupted/

@@ -90,3 +90,10 @@ data class WaypointDto(
     val accuracy: Float?,
     val timestamp: String
 )
+
+@kotlinx.serialization.Serializable
+data class NotifyUserRequest(
+    val email: String,
+    val name: String,
+    val temp_password: String
+)

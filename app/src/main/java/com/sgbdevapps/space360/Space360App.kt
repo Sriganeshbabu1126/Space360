@@ -11,7 +11,8 @@ class Space360App : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
-    override fun getWorkManagerConfiguration(): Configuration =
+    override val workManagerConfiguration: Configuration
+        get(): Configuration =
         Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()

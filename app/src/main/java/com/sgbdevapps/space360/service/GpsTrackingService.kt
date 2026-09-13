@@ -142,6 +142,10 @@ class GpsTrackingService : Service() {
     }
 
     companion object {
+        private var _recordingSession: com.sgbdevapps.space360.service.RecordingSession? = null
+        fun setRecordingSession(session: com.sgbdevapps.space360.service.RecordingSession?) {
+            _recordingSession = session
+        }
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val EXTRA_PATH_ID = "EXTRA_PATH_ID"

@@ -4,28 +4,20 @@ filepath = "app/build.gradle.kts"
 with open(filepath, "r", encoding="utf-8") as f:
     content = f.read()
 
-# Add packaging block inside android {
-# Find closing brace of buildFeatures
-old_block = """    buildFeatures {
-        compose = true
-        buildConfig = true
+new_packaging = """    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+        }
     }"""
-new_block = """    buildFeatures {
-        compose = true
-        buildConfig = true
-    }
-    
-    packaging {
-        resources.excludes.add("META-INF/DEPENDENCIES")
-        resources.excludes.add("META-INF/LICENSE")
-        resources.excludes.add("META-INF/LICENSE.txt")
-        resources.excludes.add("META-INF/license.txt")
-        resources.excludes.add("META-INF/NOTICE")
-        resources.excludes.add("META-INF/NOTICE.txt")
-        resources.excludes.add("META-INF/notice.txt")
-        resources.excludes.add("META-INF/ASL2.0")
-    }"""
-content = content.replace(old_block, new_block)
+
+content = content.replace('    packaging {\n        resources {\n            excludes += "/META-INF/{AL2.0,LGPL2.1}"\n        }\n    }', new_packaging)
 
 with open(filepath, "w", encoding="utf-8") as f:
     f.write(content)

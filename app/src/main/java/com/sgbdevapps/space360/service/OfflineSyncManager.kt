@@ -12,7 +12,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.sgbdevapps.space360.data.local.OfflineSyncQueueEntity
+import com.sgbdevapps.space360.data.local.SyncQueueEntity
 import com.sgbdevapps.space360.domain.model.Issue
 import com.sgbdevapps.space360.data.remote.UpdateIssueStatusRequest
 import com.sgbdevapps.space360.data.remote.AddCommentRequest
@@ -41,13 +41,14 @@ class OfflineSyncManager @Inject constructor(
             }
         } catch (e: Exception) { "{}" }
         
-        val queueItem = OfflineSyncQueueEntity(
-            action = action,
-            resourceType = resourceType,
-            resourceId = resourceId,
-            payload = jsonPayload
+        val queueItem = SyncQueueEntity(
+            operationType = action,
+            issueId = resourceId,
+            payload = jsonPayload,
+            createdAt = System.currentTimeMillis(),
+            status = "PENDING"
         )
-        db.offlineSyncQueueDao().insert(queueItem)
+        db.syncQueueDao().insertOperation(queueItem)
     }
     
     suspend fun syncPendingItems(): SyncResult {
@@ -55,20 +56,20 @@ class OfflineSyncManager @Inject constructor(
             return SyncResult(synced = 0, failed = 0, queued = 0)
         }
         
-        val pendingItems = db.offlineSyncQueueDao().getPendingItems()
+        val pendingItems = db.syncQueueDao().getPendingOperations()
         var synced = 0
         var failed = 0
         
         for (item in pendingItems) {
             try {
-                when (item.action) {
+                when (item.operationType) {
                     "update_status" -> {
                         val update = Json.decodeFromString<UpdateIssueStatusRequest>(item.payload)
-                        api.updateIssueStatus(item.resourceId, update)
+                        api.updateIssueStatus(item.issueId, update)
                     }
                     "add_comment" -> {
                         val comment = Json.decodeFromString<AddCommentRequest>(item.payload)
-                        api.addComment(item.resourceId, comment)
+                        api.addComment(item.issueId, comment)
                     }
                     "upload_photo" -> {
                         val photoFilePath = item.payload.removePrefix("file://")
@@ -79,37 +80,36 @@ class OfflineSyncManager @Inject constructor(
                         
                         val requestFile = photoFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
                         val body = okhttp3.MultipartBody.Part.createFormData("file", photoFile.name, requestFile)
-                        api.uploadPhoto(item.resourceId, body)
+                        api.uploadPhoto(item.issueId, body)
                     }
                 }
                 
                 item.copy(
-                    status = "synced",
-                    updatedAt = System.currentTimeMillis()
-                ).let { db.offlineSyncQueueDao().update(it) }
+                    status = "SYNCED",
+                    syncedAt = System.currentTimeMillis()
+                ).let { db.syncQueueDao().updateOperation(it) }
                 
-                db.offlineSyncQueueDao().delete(item.id)
+                db.syncQueueDao().deleteOperation(item)
                 synced++
                 
             } catch (e: Exception) {
                 Log.e(logger, "Sync failed for ${item.id}", e)
                 item.copy(
-                    status = if (item.attempts >= item.maxAttempts) "failed" else "pending",
-                    attempts = item.attempts + 1,
-                    lastAttemptAt = System.currentTimeMillis(),
-                    errorMessage = e.message,
-                    updatedAt = System.currentTimeMillis()
-                ).let { db.offlineSyncQueueDao().update(it) }
+                    status = if (item.retryCount >= item.maxRetries) "FAILED" else "PENDING",
+                    retryCount = item.retryCount + 1,
+                    lastErrorAt = System.currentTimeMillis(),
+                    lastError = e.message
+                ).let { db.syncQueueDao().updateOperation(it) }
                 
                 failed++
             }
         }
         
-        return SyncResult(synced, failed, db.offlineSyncQueueDao().getPendingItems().size)
+        return SyncResult(synced, failed, db.syncQueueDao().getPendingOperations().size)
     }
     
-    suspend fun getPendingItemsForResource(resourceType: String, resourceId: String): List<OfflineSyncQueueEntity> {
-        return db.offlineSyncQueueDao().getPendingItemsForResource(resourceType, resourceId)
+    suspend fun getPendingItemsForResource(resourceType: String, resourceId: String): List<SyncQueueEntity> {
+        return db.syncQueueDao().getPendingOperations().filter { it.issueId == resourceId }
     }
 
     private fun isNetworkAvailable(): Boolean {
