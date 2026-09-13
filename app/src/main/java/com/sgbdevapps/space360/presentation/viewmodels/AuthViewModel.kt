@@ -25,23 +25,13 @@ class AuthViewModel @Inject constructor(
         checkLoginStatus()
     }
 
-    private val _mustChangePassword = MutableStateFlow(false)
-    val mustChangePassword: StateFlow<Boolean> = _mustChangePassword
-
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             val result = authRepository.login(email, password)
             if (result.isSuccess) {
-                val user = result.getOrNull()!!
-                com.sgbdevapps.space360.utils.CrashlyticsHelper.setUserContext(userId = user.id, email = user.email)
-                
-                if (password == "welcomespace360") {
-                    _mustChangePassword.value = true
-                } else {
-                    _isLoggedIn.value = true
-                    _authState.value = AuthState.Success(user)
-                }
+                _isLoggedIn.value = true
+                _authState.value = AuthState.Success(result.getOrNull()!!)
             } else {
                 _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Login failed")
             }
@@ -50,7 +40,7 @@ class AuthViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
-            com.sgbdevapps.space360.utils.CrashlyticsHelper.clearUserContext(); authRepository.logout()
+            authRepository.logout()
             _isLoggedIn.value = false
             _authState.value = AuthState.Idle
         }
@@ -62,7 +52,7 @@ class AuthViewModel @Inject constructor(
             _isLoggedIn.value = loggedIn
             if (loggedIn) {
                 authRepository.getCurrentUser().getOrNull()?.let {
-                    com.sgbdevapps.space360.utils.CrashlyticsHelper.setUserContext(userId = it.id, email = it.email); _authState.value = AuthState.Success(it)
+                    _authState.value = AuthState.Success(it)
                 }
             }
         }

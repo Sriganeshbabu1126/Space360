@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sgbdevapps.space360.domain.repository.AuthRepository
-import com.sgbdevapps.space360.domain.SessionManager
 import com.sgbdevapps.space360.domain.repository.PathRepository
 import com.sgbdevapps.space360.service.GpsTrackingService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,9 +13,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.distinctUntilChanged
-import timber.log.Timber
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,50 +20,8 @@ import javax.inject.Inject
 class PathCaptureViewModel @Inject constructor(
     application: Application,
     private val pathRepository: PathRepository,
-    private val authRepository: AuthRepository,
-    private val sessionManager: SessionManager
+    private val authRepository: AuthRepository
 ) : AndroidViewModel(application) {
-
-
-    val selectedSite = sessionManager.selectedSite
-
-    private val _isLocationPinned = MutableStateFlow(false)
-    val isLocationPinned: StateFlow<Boolean> = _isLocationPinned
-    
-    fun pinLocation() {
-        _isLocationPinned.value = true
-        // CrashlyticsHelper.logEvent("Location pinned for recording")
-    }
-    private val _showLocationPicker = MutableStateFlow(false)
-    val showLocationPicker: StateFlow<Boolean> = _showLocationPicker
-    
-    private val _pinnedLocation = MutableStateFlow<Pair<Double, Double>?>(null)
-    val pinnedLocation: StateFlow<Pair<Double, Double>?> = _pinnedLocation
-    
-    private val _floorPlanLoadState = MutableStateFlow<com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState>(com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading)
-    val floorPlanLoadState: StateFlow<com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState> = _floorPlanLoadState
-    
-    fun openLocationPicker() {
-        _showLocationPicker.value = true
-    }
-    
-    fun closeLocationPicker() {
-        _showLocationPicker.value = false
-    }
-    
-    fun pinLocationInteractive(lat: Double, lng: Double) {
-        _pinnedLocation.value = Pair(lat, lng)
-        _isLocationPinned.value = true
-        _showLocationPicker.value = false
-    }
-
-    
-    fun unpinLocation() {
-        _isLocationPinned.value = false
-        if (_isRecording.value) {
-            stopRecording()
-        }
-    }
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
@@ -128,14 +82,6 @@ class PathCaptureViewModel @Inject constructor(
     val isSaving: StateFlow<Boolean> = _isSaving
     private val _saveStatus = MutableStateFlow<String?>(null)
     val saveStatus: StateFlow<String?> = _saveStatus
-
-    
-    fun pauseRecording() {
-        _isRecording.value = false
-        timerJob?.cancel()
-        waypointJob?.cancel()
-        // Stop the GPS tracking service intent in a real scenario
-    }
 
     fun stopRecording() {
         viewModelScope.launch {
@@ -207,24 +153,6 @@ class PathCaptureViewModel @Inject constructor(
             currentPathId = null
             _waypointCount.value = 0
             _elapsedTimeSeconds.value = 0
-        }
-    }
-    private suspend fun loadFloorPlan(projectId: String) {
-        try {
-            _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading
-            
-            // Re-fetch site just in case, but we already have it from sessionManager
-            val site = sessionManager.selectedSite.value
-            val url = site?.floorPlanUrl
-            
-            _floorPlanLoadState.value = if (!url.isNullOrBlank()) {
-                com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loaded(url)
-            } else {
-                com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "loadFloorPlan failed")
-            _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
         }
     }
 }

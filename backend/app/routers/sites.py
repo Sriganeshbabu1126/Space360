@@ -25,9 +25,6 @@ def list_sites(db: Session = Depends(get_db)):
                   .filter(Issue.status != IssueStatusEnum.closed)\
                   .count()
         
-        first_floor_plan = db.query(FloorPlan).filter(FloorPlan.site_id == site.id).first()
-        floor_plan_url = first_floor_plan.image_url if first_floor_plan else None
-        
         site_dict = {
             "id": site.id,
             "name": site.name,
@@ -37,8 +34,7 @@ def list_sites(db: Session = Depends(get_db)):
             "created_by": site.created_by,
             "status": site.status,
             "created_at": site.created_at,
-            "open_issues_count": count,
-            "floor_plan_url": floor_plan_url
+            "open_issues_count": count
         }
         results.append(site_dict)
         

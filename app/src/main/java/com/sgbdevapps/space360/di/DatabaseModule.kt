@@ -1,12 +1,6 @@
 package com.sgbdevapps.space360.di
 
 import android.content.Context
-
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.preferencesDataStoreFile
-import java.io.File
 import androidx.room.Room
 import com.sgbdevapps.space360.data.local.Space360Database
 import dagger.Module
@@ -19,14 +13,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-
-    @Provides
-    @Singleton
-    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-        return PreferenceDataStoreFactory.create(
-            produceFile = { context.preferencesDataStoreFile("space360_prefs") }
-        )
-    }
 
     @Provides
     @Singleton

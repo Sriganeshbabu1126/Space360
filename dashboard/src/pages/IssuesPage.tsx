@@ -15,7 +15,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSite } from '../context/SiteContext';
 import PhotoGallery, { IssuePhoto } from '../components/PhotoGallery';
 import AdvancedFilterPanel from '../components/AdvancedFilterPanel';
-import { PathVideoViewer } from '../components/PathVideoViewer';
 
 interface Contractor {
   id: string;
@@ -48,7 +47,6 @@ interface Issue {
   session_b_id: string;
   frame_a_id?: string;
   frame_b_id?: string;
-  path_id?: string;
   frame_a?: any;
   frame_b?: any;
   created_by: string;
@@ -928,20 +926,6 @@ const IssuesPage: React.FC = () => {
                      </button>
                    )}
                 </div>
-                
-                {selectedIssue.path_id && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center">
-                      🎬 Related Path + Video
-                    </h4>
-                    <details className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <summary className="p-3 font-semibold text-sm cursor-pointer hover:bg-gray-50">View path with video correlation</summary>
-                      <div className="p-3 border-t border-gray-200">
-                        <PathVideoViewer pathId={selectedIssue.path_id} />
-                      </div>
-                    </details>
-                  </div>
-                )}
               </div>
             </div>
           </div>

@@ -125,25 +125,4 @@ class PathRepositoryImpl @Inject constructor(
         // Simple discard by setting status to DISCARDED
         pathDao.updatePathStatus(pathId, "DISCARDED", null)
     }
-    
-    override suspend fun updatePathWithCameraMetadata(
-        pathId: String,
-        cameraStartNanos: Long?,
-        cameraEndNanos: Long?,
-        clockOffsetNanos: Long?,
-        sessionJson: String?
-    ) {
-        val path = pathDao.getPathById(pathId)
-        if (path != null) {
-            val updated = path.copy(
-                cameraStartTimestampNanos = cameraStartNanos,
-                cameraEndTimestampNanos = cameraEndNanos,
-                clockOffsetNanos = clockOffsetNanos,
-                recordingSessionJson = sessionJson,
-                updatedAt = System.currentTimeMillis()
-            )
-            // Use insertPath assuming it's OnConflictStrategy.REPLACE
-            pathDao.insertPath(updated)
-        }
-    }
 }

@@ -27,8 +27,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-import android.os.SystemClock
-
 @AndroidEntryPoint
 class GpsTrackingService : Service() {
 
@@ -42,12 +40,6 @@ class GpsTrackingService : Service() {
     private var waypointsCountJob: Job? = null
 
     private var currentPathId: String? = null
-
-    private var recordingStartTimestampNanos: Long = 0
-    private var recordingEndTimestampNanos: Long = 0
-
-    fun getRecordingStartTimestampNanos(): Long = recordingStartTimestampNanos
-    fun getRecordingEndTimestampNanos(): Long = recordingEndTimestampNanos
 
     override fun onCreate() {
         super.onCreate()
@@ -80,8 +72,6 @@ class GpsTrackingService : Service() {
             val pathId = intent.getStringExtra(EXTRA_PATH_ID)
             if (pathId != null) {
                 currentPathId = pathId
-                recordingStartTimestampNanos = SystemClock.elapsedRealtimeNanos()
-                android.util.Log.d("SPACE360_DEBUG", "GPS tracking started at nanos=$recordingStartTimestampNanos")
                 startForeground(NOTIFICATION_ID, buildNotification(0))
                 startLocationUpdates()
                 
@@ -94,8 +84,6 @@ class GpsTrackingService : Service() {
                 }
             }
         } else if (intent?.action == ACTION_STOP) {
-            recordingEndTimestampNanos = SystemClock.elapsedRealtimeNanos()
-            android.util.Log.d("SPACE360_DEBUG", "GPS tracking stopped at nanos=$recordingEndTimestampNanos, duration=${(recordingEndTimestampNanos - recordingStartTimestampNanos) / 1_000_000_000}s")
             stopLocationUpdates()
             waypointsCountJob?.cancel()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -160,12 +148,5 @@ class GpsTrackingService : Service() {
         
         private const val CHANNEL_ID = "gps_tracking_channel"
         private const val NOTIFICATION_ID = 1
-
-        var currentRecordingSession: RecordingSession? = null
-
-        fun setRecordingSession(session: RecordingSession) {
-            this.currentRecordingSession = session
-            android.util.Log.d("SPACE360_DEBUG", "Recording session set in GPS service: ${session.pathId}")
-        }
     }
 }

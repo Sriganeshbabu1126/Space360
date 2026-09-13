@@ -5,6 +5,5 @@ data class Site(
     val name: String,
     val location: String? = null,
     val status: String = "Active", // Active, Completed, On Hold
-    val openIssuesCount: Int = 0,
-    val floorPlanUrl: String? = null
+    val openIssuesCount: Int = 0
 )

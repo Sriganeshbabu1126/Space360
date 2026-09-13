@@ -8,11 +8,4 @@ interface PathRepository {
     suspend fun addWaypoint(pathId: String, lat: Double, lng: Double, alt: Double?, head: Double?, acc: Float)
     fun observeWaypointCount(pathId: String): Flow<Int>
     suspend fun discardPath(pathId: String)
-    suspend fun updatePathWithCameraMetadata(
-        pathId: String,
-        cameraStartNanos: Long?,
-        cameraEndNanos: Long?,
-        clockOffsetNanos: Long?,
-        sessionJson: String?
-    )
 }

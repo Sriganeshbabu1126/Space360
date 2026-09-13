@@ -8,11 +8,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sgbdevapps.space360",
+      "bundleIdentifier": "com.space360.mobile",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "package": "com.sgbdevapps.space360",
+      "package": "com.space360.mobile",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

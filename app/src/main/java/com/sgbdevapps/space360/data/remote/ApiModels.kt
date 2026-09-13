@@ -26,8 +26,7 @@ data class SiteResponse(
     val name: String,
     @SerializedName("address") val location: String? = null,
     val status: String = "Active",
-    val open_issues_count: Int = 0,
-    val floor_plan_url: String? = null
+    val open_issues_count: Int = 0
 )
 
 // Issues
@@ -90,10 +89,4 @@ data class WaypointDto(
     val heading: Double?,
     val accuracy: Float?,
     val timestamp: String
-)
-
-data class NotifyUserRequest(
-    val name: String,
-    val email: String,
-    val temp_password: String
 )
