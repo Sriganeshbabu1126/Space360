@@ -22,7 +22,8 @@ class SiteRepositoryImpl @Inject constructor(
                     name = it.name,
                     location = it.location,
                     status = it.status,
-                    openIssuesCount = it.open_issues_count
+                    openIssuesCount = it.open_issues_count,
+                    floorPlanUrl = it.floor_plan_url
                 )
             }
 
@@ -66,7 +67,8 @@ class SiteRepositoryImpl @Inject constructor(
                 name = response.name,
                 location = response.location,
                 status = response.status,
-                openIssuesCount = response.open_issues_count
+                openIssuesCount = response.open_issues_count,
+                floorPlanUrl = response.floor_plan_url
             )
             Result.success(site)
         } catch (e: Exception) {

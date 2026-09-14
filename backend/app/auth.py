@@ -16,7 +16,7 @@ def get_current_user(
     token: HTTPAuthorizationCredentials = Depends(bearer_scheme)
 ) -> dict:
     try:
-        decoded = auth.verify_id_token(token.credentials)
+        decoded = auth.verify_id_token(token.credentials, clock_skew_seconds=60)
         return decoded
     except Exception as e:
         print(f"Token verification failed: {e}")

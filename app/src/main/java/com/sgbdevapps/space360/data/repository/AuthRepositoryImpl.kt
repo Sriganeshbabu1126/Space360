@@ -29,7 +29,7 @@ class AuthRepositoryImpl @Inject constructor(
                 id = firebaseUser.uid,
                 email = firebaseUser.email ?: "",
                 displayName = firebaseUser.displayName,
-                role = "Contractor"
+                role = "Manager"
             )
 
             // Cache locally
@@ -68,7 +68,7 @@ class AuthRepositoryImpl @Inject constructor(
                     id = firebaseUser.uid,
                     email = firebaseUser.email ?: "",
                     displayName = firebaseUser.displayName,
-                    role = "Contractor"
+                    role = "Manager"
                 )
                 Result.success(user)
             } else {

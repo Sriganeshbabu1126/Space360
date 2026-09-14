@@ -60,6 +60,7 @@ class SiteResponse(BaseModel):
     status: StatusEnum
     created_at: datetime
     open_issues_count: int = 0
+    floor_plan_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -351,3 +352,56 @@ class IssueNotificationResponse(BaseModel):
         from_attributes = True
 
 ProjectDetailResponse.model_rebuild()
+
+
+class VideoUploadRequest(BaseModel):
+    path_id: str
+
+class VideoMetadata(BaseModel):
+    duration_seconds: float
+    fps: int
+    resolution: str
+    codec: str
+
+class VideoFrameResponse(BaseModel):
+    id: str
+    video_id: str
+    frame_number: int
+    timestamp_seconds: float
+    thumbnail_url: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class VideoUploadResponse(BaseModel):
+    id: str
+    path_id: str
+    upload_status: str
+    file_size_bytes: Optional[int] = None
+    duration_seconds: Optional[float] = None
+    fps: Optional[int] = None
+    gcs_url: Optional[str] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class VideoDetailResponse(VideoUploadResponse):
+    frames: List[VideoFrameResponse] = []
+
+class CorrelationResponse(BaseModel):
+    id: str
+    path_id: str
+    waypoint_id: str
+    frame_id: str
+    timestamp_offset_ms: int
+    confidence: float
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class CorrelationDetailResponse(BaseModel):
+    path_id: str
+    correlation_count: int
+    correlations: List[CorrelationResponse]
+

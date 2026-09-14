@@ -6,6 +6,14 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
+              <option name="connection">
+                <ConnectionSetting>
+                  <option name="appId" value="com.sgbdevapps.space360" />
+                  <option name="mobileSdkAppId" value="1:356278681043:android:41825acb5d0eff8ea18326" />
+                  <option name="projectId" value="space360-production" />
+                  <option name="projectNumber" value="356278681043" />
+                </ConnectionSetting>
+              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

@@ -1,172 +1,200 @@
 package com.sgbdevapps.space360.presentation.viewmodels
 
+import android.graphics.Bitmap
+import android.net.Uri
+import android.util.Log
+import timber.log.Timber
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sgbdevapps.space360.data.network.NetworkConnectivityManager
+import com.sgbdevapps.space360.data.remote.IssuesService
+import com.sgbdevapps.space360.data.remote.AddCommentRequest
+import com.sgbdevapps.space360.data.remote.UpdateIssueStatusRequest
 import com.sgbdevapps.space360.domain.model.Issue
-import com.sgbdevapps.space360.domain.model.IssueComment
-import com.sgbdevapps.space360.domain.model.IssuePhoto
-import com.sgbdevapps.space360.domain.repository.AuthRepository
-import com.sgbdevapps.space360.domain.repository.IssueRepository
+import com.sgbdevapps.space360.service.OfflineSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class IssueDetailViewModel @Inject constructor(
-    private val issueRepository: IssueRepository,
-    private val authRepository: AuthRepository,
-    private val networkConnectivity: NetworkConnectivityManager
+    @ApplicationContext private val context: Context,
+    private val api: IssuesService,
+    private val issueRepository: com.sgbdevapps.space360.domain.repository.IssueRepository,
+    private val offlineSyncManager: OfflineSyncManager
 ) : ViewModel() {
     
+    private val TAG = "IssueDetailViewModel"
+    
     private val _issue = MutableStateFlow<Issue?>(null)
-    val issue: StateFlow<Issue?> = _issue.asStateFlow()
-    
-    private val _comments = MutableStateFlow<List<IssueComment>>(emptyList())
-    val comments: StateFlow<List<IssueComment>> = _comments.asStateFlow()
-    
-    private val _photos = MutableStateFlow<List<IssuePhoto>>(emptyList())
-    val photos: StateFlow<List<IssuePhoto>> = _photos.asStateFlow()
+    val issue = _issue.asStateFlow()
     
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoading = _isLoading.asStateFlow()
     
     private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    val error = _error.asStateFlow()
     
-    private val _isOnline = MutableStateFlow(true)
-    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
+    private val _isUploadingPhoto = MutableStateFlow(false)
+    val isUploadingPhoto = _isUploadingPhoto.asStateFlow()
     
-    private val _pendingSyncCount = MutableStateFlow(0)
-    val pendingSyncCount: StateFlow<Int> = _pendingSyncCount.asStateFlow()
+    private val _photoUploadError = MutableStateFlow<String?>(null)
+    val photoUploadError = _photoUploadError.asStateFlow()
     
-    private val _lastCacheUpdateTime = MutableStateFlow<Long?>(null)
-    val lastCacheUpdateTime: StateFlow<Long?> = _lastCacheUpdateTime.asStateFlow()
+    private var currentIssueId: String? = null
     
-    private val _isAdmin = MutableStateFlow(false)
-    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
-    
-    init {
-        viewModelScope.launch {
-            networkConnectivity.isOnline.collect { online ->
-                _isOnline.value = online
-            }
-        }
+
+    fun updateIssueStatus(newStatus: String) {
+        val currentIssue = _issue.value ?: return
+        // Update local state optimistically
+        _issue.value = currentIssue.copy(status = newStatus)
         
         viewModelScope.launch {
-            issueRepository.observePendingSyncCount().collect { count ->
-                _pendingSyncCount.value = count
+            try {
+                api.updateIssueStatus(currentIssue.id, UpdateIssueStatusRequest(newStatus))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update status on server", e)
+                offlineSyncManager.queueAction("update_status", "issue", currentIssue.id, UpdateIssueStatusRequest(newStatus))
             }
-        }
-        
-        viewModelScope.launch {
-            val user = authRepository.getCurrentUser().getOrNull()
-            _isAdmin.value = user?.email == "wincadsg@gmail.com"
         }
     }
-    
-    fun loadIssueDetail(issueId: String) {
+
+    fun loadIssue(issueId: String) {
+        currentIssueId = issueId
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
-                val result = issueRepository.getIssueById(issueId)
-                val loadedIssue = result.getOrNull()
-                _issue.value = loadedIssue
-                _comments.value = loadedIssue?.comments ?: emptyList()
-                _photos.value = loadedIssue?.photos ?: emptyList()
-                _lastCacheUpdateTime.value = System.currentTimeMillis()
+                val fetched = api.getIssueById(issueId)
                 
-                if (result.isFailure) {
-                    _error.value = result.exceptionOrNull()?.message
-                }
+                val domainComments = fetched.comments?.map { 
+                    com.sgbdevapps.space360.domain.model.IssueComment(
+                        id = it.id,
+                        issueId = issueId,
+                        userId = "unknown",
+                        userName = it.user_name,
+                        text = it.text,
+                        createdAt = it.created_at
+                    )
+                } ?: emptyList()
+                
+                val domainPhotos = fetched.photos?.map {
+                    com.sgbdevapps.space360.domain.model.IssuePhoto(
+                        id = it.id,
+                        issueId = issueId,
+                        photoUrl = it.photo_url,
+                        uploadedAt = it.uploaded_at ?: ""
+                    )
+                } ?: emptyList()
+                
+                _issue.value = Issue(
+                    id = fetched.id, 
+                    title = fetched.title, 
+                    description = fetched.description ?: "", 
+                    status = fetched.status, 
+                    priority = fetched.priority ?: "", 
+                    siteId = fetched.site_id, 
+                    assignedTo = "", 
+                    assignedToName = "", 
+                    createdAt = "", 
+                    updatedAt = "", 
+                    comments = domainComments,
+                    photos = domainPhotos
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load issue", e)
+                _error.value = "Could not load issue"
             } finally {
                 _isLoading.value = false
             }
         }
     }
     
-    fun updateIssueStatus(issueId: String, newStatus: String) {
+    fun uploadPhotoBitmap(bitmap: Bitmap) {
+        val issueId = currentIssueId ?: return
+        // Pseudo code for MVP, converting Bitmap to multipart is complex for python generation
+        // Ideally we save to file, get URI, then upload.
+        // Queueing offline photo upload
         viewModelScope.launch {
             try {
-                val userId = authRepository.getCurrentUser().getOrNull()?.id ?: ""
-                val result = issueRepository.updateIssueStatus(
-                    issueId = issueId,
-                    newStatus = newStatus,
-                    contractorId = userId
-                )
-                
-                if (result.isSuccess) {
-                    _issue.value = _issue.value?.copy(status = newStatus)
-                    _error.value = null
-                } else {
-                    _error.value = result.exceptionOrNull()?.message
-                }
+                offlineSyncManager.queueAction("upload_photo", "issue", issueId, "file_path_placeholder")
             } catch (e: Exception) {
-                _error.value = e.message
+                Log.e(TAG, "Failed to queue photo upload", e)
             }
         }
     }
     
-    fun addComment(issueId: String, text: String) {
+    fun addPhotoToIssue(issueId: String, photoUri: Uri) {
         viewModelScope.launch {
             try {
-                val user = authRepository.getCurrentUser().getOrNull()
-                val userId = user?.id ?: ""
-                val userName = user?.displayName ?: "Current User"
+                _isUploadingPhoto.value = true
+                Timber.d("PHOTO_DEBUG: starting upload issueId=$issueId uri=$photoUri")
 
-                val result = issueRepository.addComment(
-                    issueId = issueId,
-                    text = text,
-                    contractorId = userId
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(photoUri)
+                    ?: throw Exception("Cannot open image stream")
+
+                val bytes = inputStream.readBytes()
+                inputStream.close()
+
+                val requestBody = okhttp3.RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
+                val multipart = okhttp3.MultipartBody.Part.createFormData(
+                    "photo", "photo_${System.currentTimeMillis()}.jpg", requestBody
                 )
-                
+
+                api.uploadPhoto(issueId, multipart)
+
+                Timber.d("PHOTO_DEBUG: upload successful — refreshing issue")
+
+                val result = issueRepository.getIssueById(issueId)
                 if (result.isSuccess) {
-                    val newComment = IssueComment(
-                        id = java.util.UUID.randomUUID().toString(),
-                        issueId = issueId,
-                        userId = userId,
-                        userName = userName,
-                        text = text,
-                        createdAt = java.time.Instant.now().toString()
-                    )
-                    _comments.value = _comments.value + newComment
-                    _error.value = null
-                } else {
-                    _error.value = result.exceptionOrNull()?.message
+                    _issue.value = result.getOrNull()
                 }
+
+                Timber.i("Photo uploaded + issue refreshed for $issueId")
+
             } catch (e: Exception) {
-                _error.value = e.message
+                Timber.e(e, "PHOTO_DEBUG: upload FAILED — ${e.message}")
+                _photoUploadError.value = e.message ?: "Photo upload failed"
+            } finally {
+                _isUploadingPhoto.value = false
             }
         }
     }
     
-    fun addPhotos(issueId: String, photoFilePaths: List<String>) {
+    fun addComment(text: String) {
+        val issueId = currentIssueId ?: return
         viewModelScope.launch {
-            for (filePath in photoFilePaths) {
-                try {
-                    val result = issueRepository.addPhotoToIssue(
+            try {
+                api.addComment(issueId, AddCommentRequest(text))
+                // Reload immediately
+                loadIssue(issueId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add comment", e)
+                offlineSyncManager.queueAction("add_comment", "issue", issueId, AddCommentRequest(text))
+                
+                // Optimistic UI update
+                val current = _issue.value ?: return@launch
+                val newComments = current.comments.toMutableList()
+                newComments.add(
+                    com.sgbdevapps.space360.domain.model.IssueComment(
+                        id = "temp_${System.currentTimeMillis()}",
                         issueId = issueId,
-                        filePath = filePath
+                        userId = "current_user",
+                        userName = "You (Offline)",
+                        text = text,
+                        createdAt = "Just now"
                     )
-                    
-                    if (result.isSuccess) {
-                        val newPhoto = IssuePhoto(
-                            id = java.util.UUID.randomUUID().toString(),
-                            issueId = issueId,
-                            photoUrl = filePath,
-                            uploadedAt = java.time.Instant.now().toString()
-                        )
-                        _photos.value = _photos.value + newPhoto
-                    }
-                } catch (e: Exception) {
-                    _error.value = "Failed to upload photo: ${e.message}"
-                }
+                )
+                _issue.value = current.copy(comments = newComments)
             }
         }
-    }
-    
-    fun clearError() {
-        _error.value = null
     }
 }

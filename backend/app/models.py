@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import (Column, String, Float, Boolean, 
-                        DateTime, Text, JSON, ForeignKey, Enum, Integer)
+                        DateTime, Text, JSON, ForeignKey, Enum, Integer, BigInteger)
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
@@ -319,6 +319,13 @@ class Path(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
     waypoint_count = Column(Integer, default=0)
+    
+    # Metadata for Video Sync
+    pathStartTimestampNanos = Column(BigInteger, nullable=True)
+    cameraStartTimestampNanos = Column(BigInteger, nullable=True)
+    clockOffsetNanos = Column(BigInteger, nullable=True)
+    recordingSessionJson = Column(Text, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     waypoints = relationship("PathPoint", back_populates="path")
@@ -336,3 +343,43 @@ class PathPoint(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     
     path = relationship("Path", back_populates="waypoints")
+
+
+class VideoUpload(Base):
+    __tablename__ = "video_uploads"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    user_id = Column(String, nullable=False)
+    file_size_bytes = Column(Integer)
+    duration_seconds = Column(Float)
+    fps = Column(Integer)
+    resolution = Column(String(50))
+    codec = Column(String(50))
+    gcs_url = Column(String(500))
+    upload_status = Column(String, default="pending")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    frames = relationship("VideoFrame", back_populates="video")
+
+class VideoFrame(Base):
+    __tablename__ = "video_frames"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    video_id = Column(String, ForeignKey("video_uploads.id"), nullable=False)
+    frame_number = Column(Integer, nullable=False)
+    timestamp_seconds = Column(Float, nullable=False)
+    thumbnail_url = Column(String(500))
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    video = relationship("VideoUpload", back_populates="frames")
+
+class FrameGpsCorrelation(Base):
+    __tablename__ = "frame_gps_correlations"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("paths.id"), nullable=False)
+    waypoint_id = Column(String, ForeignKey("path_points.id"), nullable=False)
+    frame_id = Column(String, ForeignKey("video_frames.id"), nullable=False)
+    timestamp_offset_ms = Column(Integer)
+    confidence = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

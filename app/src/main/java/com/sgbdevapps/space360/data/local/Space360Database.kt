@@ -13,9 +13,10 @@ import androidx.room.RoomDatabase
         SyncQueueEntity::class,
         CacheMetadataEntity::class,
         PathEntity::class,
-        PathPointEntity::class
+        PathPointEntity::class,
+        OfflineSyncQueueEntity::class
     ],
-    version = 6
+    version = 7
 )
 abstract class Space360Database : RoomDatabase() {
     abstract fun userDao(): UserDao
@@ -27,4 +28,5 @@ abstract class Space360Database : RoomDatabase() {
     abstract fun cacheMetadataDao(): CacheMetadataDao
     abstract fun pathDao(): PathDao
     abstract fun pathPointDao(): PathPointDao
+    abstract fun offlineSyncQueueDao(): OfflineSyncQueueDao
 }

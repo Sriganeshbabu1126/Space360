@@ -26,7 +26,8 @@ data class SiteResponse(
     val name: String,
     @SerializedName("address") val location: String? = null,
     val status: String = "Active",
-    val open_issues_count: Int = 0
+    val open_issues_count: Int = 0,
+    val floor_plan_url: String? = null
 )
 
 // Issues
@@ -91,9 +92,8 @@ data class WaypointDto(
     val timestamp: String
 )
 
-@kotlinx.serialization.Serializable
 data class NotifyUserRequest(
-    val email: String,
     val name: String,
+    val email: String,
     val temp_password: String
 )

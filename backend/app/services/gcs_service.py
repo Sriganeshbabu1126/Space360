@@ -103,3 +103,15 @@ def delete_file(gcs_url: str):
     blob = bucket.blob(blob_name)
     if blob.exists():
         blob.delete()
+
+
+def download_file(gcs_url_or_path: str, local_path: str) -> None:
+    """Download file from GCS to local temp storage."""
+    # if it's a full URL, parse it, otherwise use as path
+    if gcs_url_or_path.startswith('https://storage.googleapis.com/'):
+        blob_name = gcs_url_or_path.split(bucket.name + '/')[1]
+    else:
+        blob_name = gcs_url_or_path
+    blob = bucket.blob(blob_name)
+    blob.download_to_filename(local_path)
+

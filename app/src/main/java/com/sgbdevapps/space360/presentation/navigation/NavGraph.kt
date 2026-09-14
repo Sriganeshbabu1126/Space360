@@ -4,12 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navDeepLink
 import com.sgbdevapps.space360.presentation.screens.LoginScreen
+import com.sgbdevapps.space360.presentation.screens.ChangePasswordScreen
 import com.sgbdevapps.space360.presentation.screens.DashboardScreen
-import com.sgbdevapps.space360.presentation.screens.IssuesListScreen
+import com.sgbdevapps.space360.presentation.screens.IssuesScreen
 import com.sgbdevapps.space360.presentation.screens.IssueDetailScreen
 import com.sgbdevapps.space360.presentation.screens.CaptureScreen
 import com.sgbdevapps.space360.presentation.screens.ProfileScreen
+import com.sgbdevapps.space360.presentation.screens.SettingsScreen
+import com.sgbdevapps.space360.presentation.screens.QRScannerScreen
+import com.sgbdevapps.space360.presentation.screens.CreateIssueScreen
 
 sealed class Route(val route: String) {
     object Login : Route("login")
@@ -18,6 +23,9 @@ sealed class Route(val route: String) {
     object IssueDetail : Route("issue/{issueId}")
     object Capture : Route("capture")
     object Profile : Route("profile")
+    object Settings : Route("settings")
+    object CreateIssue : Route("create_issue")
+    object QRScanner : Route("qr_scanner")
 }
 
 @Composable
@@ -33,13 +41,29 @@ fun NavGraph(
             LoginScreen(navController)
         }
         composable(Route.Dashboard.route) {
-            DashboardScreen(navController)
+            DashboardScreen(
+                navController = navController,
+                onLogout = {
+                    navController.navigate(Route.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
         composable(Route.IssuesList.route) { backStackEntry ->
             val siteId = backStackEntry.arguments?.getString("siteId") ?: ""
-            IssuesListScreen(navController, siteId)
+            IssuesScreen(
+                navController = navController,
+                siteId = siteId,
+                onQRScanClick = {
+                    navController.navigate(Route.QRScanner.route)
+                }
+            )
         }
-        composable(Route.IssueDetail.route) { backStackEntry ->
+        composable(
+            route = Route.IssueDetail.route,
+            deepLinks = listOf(navDeepLink { uriPattern = "space360://issue/{issueId}" })
+        ) { backStackEntry ->
             val issueId = backStackEntry.arguments?.getString("issueId") ?: ""
             IssueDetailScreen(navController, issueId)
         }
@@ -48,6 +72,39 @@ fun NavGraph(
         }
         composable(Route.Profile.route) {
             ProfileScreen(navController)
+        }
+        composable(Route.Settings.route) {
+            SettingsScreen(
+                onLogout = {
+                    navController.navigate(Route.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Route.CreateIssue.route) {
+            CreateIssueScreen(navController)
+        }
+        composable(Route.QRScanner.route) {
+            QRScannerScreen(
+                onQRScanned = { issueId ->
+                    navController.navigate("issue/$issueId") {
+                        popUpTo(Route.QRScanner.route) { inclusive = true }
+                    }
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable("change_password") {
+            ChangePasswordScreen(
+                onPasswordChanged = {
+                    navController.navigate(Route.Dashboard.route) {
+                        popUpTo(Route.Login.route) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
