@@ -58,9 +58,13 @@ class IssueDetailViewModel @Inject constructor(
         
         viewModelScope.launch {
             try {
+                Timber.d("STATUS_DEBUG: updating issue ${currentIssue.id} to $newStatus")
                 api.updateIssueStatus(currentIssue.id, UpdateIssueStatusRequest(newStatus))
+                // Re-fetch to confirm
+                loadIssue(currentIssue.id)
+                Timber.i("STATUS_DEBUG: status updated successfully")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to update status on server", e)
+                Timber.e(e, "STATUS_DEBUG: update failed")
                 offlineSyncManager.queueAction("update_status", "issue", currentIssue.id, UpdateIssueStatusRequest(newStatus))
             }
         }

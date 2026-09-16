@@ -116,6 +116,124 @@ fun SettingsScreen(
             item {
                 AboutCard()
             }
+            
+            // ── ADD NEW USER (Admin/Manager/Supervisor only) ──
+            item {
+                val userRole by viewModel.currentUserRole.collectAsState()
+                val canAddUsers = userRole?.lowercase()?.trim() in
+                    listOf("admin", "manager", "supervisor")
+
+                if (canAddUsers) {
+                    var showAddUserDialog by remember { mutableStateOf(false) }
+                    var newUserName by remember { mutableStateOf("") }
+                    var newUserEmail by remember { mutableStateOf("") }
+                    var newUserRole by remember { mutableStateOf("Contractor") }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("User Management",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Add new users. They receive a temporary password and must change it on first login.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { showAddUserDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF1D9E75))
+                            ) {
+                                Text("Add New User")
+                            }
+                        }
+                    }
+
+                    if (showAddUserDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showAddUserDialog = false },
+                            title = { Text("Add New User") },
+                            text = {
+                                Column {
+                                    OutlinedTextField(
+                                        value = newUserName,
+                                        onValueChange = { newUserName = it },
+                                        label = { Text("Full Name") },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = newUserEmail,
+                                        onValueChange = { newUserEmail = it },
+                                        label = { Text("Email") },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Role:", fontWeight = FontWeight.Bold)
+                                    listOf("Contractor", "Supervisor", "Manager").forEach { role ->
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { newUserRole = role }
+                                        ) {
+                                            RadioButton(
+                                                selected = newUserRole == role,
+                                                onClick = { newUserRole = role }
+                                            )
+                                            Text(role)
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = {
+                                    if (newUserName.isNotBlank() && newUserEmail.isNotBlank()) {
+                                        viewModel.createNewUser(newUserName, newUserEmail, newUserRole)
+                                        showAddUserDialog = false
+                                        newUserName = ""
+                                        newUserEmail = ""
+                                        newUserRole = "Contractor"
+                                    }
+                                }) { Text("Create") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showAddUserDialog = false }) { Text("Cancel") }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // ── LOGOUT (visible to ALL users) ──
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                        onLogout()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.ExitToApp, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Log Out", fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

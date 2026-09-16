@@ -64,13 +64,7 @@ fun IssueDetailScreen(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && photoUri != null) {
-            val result = com.sgbdevapps.space360.utils.PhotoCompressionHelper.compressPhotoIfNeeded(context, photoUri!!)
-            if (result.success) {
-                android.widget.Toast.makeText(context, "Compressed successfully", android.widget.Toast.LENGTH_SHORT).show()
-                viewModel.addPhotoToIssue(issueId, Uri.parse("file://${result.compressedFilePath}"))
-            } else {
-                android.widget.Toast.makeText(context, "Failed to compress", android.widget.Toast.LENGTH_LONG).show()
-            }
+            viewModel.addPhotoToIssue(issueId, photoUri!!)
         }
     }
 

@@ -28,6 +28,26 @@ class PathCaptureViewModel @Inject constructor(
     private val sessionManager: SessionManager
 ) : AndroidViewModel(application) {
 
+    init {
+        // Observe activeProjectId as Flow — reacts when project becomes available
+        viewModelScope.launch {
+            sessionManager.selectedSite
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { site ->
+                    loadFloorPlan(site.id)
+                }
+        }
+
+        // Safety net — never spin forever
+        viewModelScope.launch {
+            delay(6_000L)
+            if (_floorPlanLoadState.value is com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading) {
+                Timber.w("Floor plan timeout — showing placeholder")
+                _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
+            }
+        }
+    }
 
     val selectedSite = sessionManager.selectedSite
 
