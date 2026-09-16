@@ -191,15 +191,21 @@ fun SettingsScreen(
                                 }
                             },
                             confirmButton = {
-                                Button(onClick = {
-                                    if (newUserName.isNotBlank() && newUserEmail.isNotBlank()) {
-                                        viewModel.createNewUser(newUserName, newUserEmail, newUserRole)
+                                Button(
+                                    onClick = {
+                                        val trimmedEmail = newUserEmail.trim()
+                                        if (!isValidEmail(trimmedEmail)) {
+                                            // Show error or just return (button shouldn't be clickable anyway)
+                                            return@Button
+                                        }
+                                        viewModel.createNewUser(newUserName.trim(), trimmedEmail, newUserRole)
                                         showAddUserDialog = false
                                         newUserName = ""
                                         newUserEmail = ""
                                         newUserRole = "Contractor"
-                                    }
-                                }) { Text("Create") }
+                                    },
+                                    enabled = newUserName.isNotBlank() && newUserEmail.isNotBlank() && isValidEmail(newUserEmail.trim())
+                                ) { Text("Create") }
                             },
                             dismissButton = {
                                 TextButton(onClick = { showAddUserDialog = false }) { Text("Cancel") }

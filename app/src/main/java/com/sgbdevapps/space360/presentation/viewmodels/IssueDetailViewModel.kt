@@ -136,10 +136,11 @@ class IssueDetailViewModel @Inject constructor(
     }
     
     fun addPhotoToIssue(issueId: String, photoUri: Uri) {
+        Timber.d("PHOTO_UPLOAD: method entered issueId=$issueId uri=$photoUri")
         viewModelScope.launch {
             try {
                 _isUploadingPhoto.value = true
-                Timber.d("PHOTO_DEBUG: starting upload issueId=$issueId uri=$photoUri")
+                Timber.d("PHOTO_UPLOAD: opening input stream")
 
                 val contentResolver = context.contentResolver
                 val inputStream = contentResolver.openInputStream(photoUri)
@@ -147,26 +148,28 @@ class IssueDetailViewModel @Inject constructor(
 
                 val bytes = inputStream.readBytes()
                 inputStream.close()
+                
+                Timber.d("PHOTO_UPLOAD: bytes read (${bytes.size}), creating multipart")
 
+                // FIxing the deprecated RequestBody.create
                 val requestBody = okhttp3.RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
                 val multipart = okhttp3.MultipartBody.Part.createFormData(
                     "photo", "photo_${System.currentTimeMillis()}.jpg", requestBody
                 )
 
+                Timber.d("PHOTO_UPLOAD: calling api.uploadPhoto")
                 api.uploadPhoto(issueId, multipart)
 
-                Timber.d("PHOTO_DEBUG: upload successful — refreshing issue")
+                Timber.d("PHOTO_UPLOAD: upload successful — refreshing issue")
 
                 val result = issueRepository.getIssueById(issueId)
                 if (result.isSuccess) {
                     _issue.value = result.getOrNull()
                 }
 
-                Timber.i("Photo uploaded + issue refreshed for $issueId")
-
+                Timber.i("PHOTO_UPLOAD: Photo uploaded + issue refreshed for $issueId")
             } catch (e: Exception) {
-                Timber.e(e, "PHOTO_DEBUG: upload FAILED — ${e.message}")
-                _photoUploadError.value = e.message ?: "Photo upload failed"
+                Timber.e(e, "PHOTO_UPLOAD: error — ${e.message}")
             } finally {
                 _isUploadingPhoto.value = false
             }

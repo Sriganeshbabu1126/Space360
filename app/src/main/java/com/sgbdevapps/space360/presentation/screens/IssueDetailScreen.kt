@@ -157,6 +157,16 @@ fun IssueDetailScreen(
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
+                        // Add temporary test button for photo upload diagnostic
+                        Button(onClick = {
+                            timber.log.Timber.d("TEST_PHOTO: button clicked")
+                            val testUri = Uri.parse("android.resource://${context.packageName}/drawable/floor_plan_placeholder")
+                            timber.log.Timber.d("TEST_PHOTO: calling addPhotoToIssue with uri=$testUri")
+                            viewModel.addPhotoToIssue(issueId, testUri)
+                        }) { Text("🧪 Test Photo Upload") }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
                         // Photos Section
                         PhotosSection(
                             photos = currentIssue.photos,

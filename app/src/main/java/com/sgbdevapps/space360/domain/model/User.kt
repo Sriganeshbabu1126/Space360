@@ -4,5 +4,6 @@ data class User(
     val id: String,
     val email: String,
     val displayName: String? = null,
-    val role: String = "Contractor" // Admin, Manager, Contractor
+    val role: String = "Contractor", // Admin, Manager, Contractor
+    val assignedProjectIds: List<String> = emptyList()
 )

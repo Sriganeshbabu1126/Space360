@@ -29,23 +29,32 @@ class PathCaptureViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     init {
-        // Observe activeProjectId as Flow — reacts when project becomes available
-        viewModelScope.launch {
-            sessionManager.selectedSite
-                .filterNotNull()
-                .distinctUntilChanged()
-                .collect { site ->
-                    loadFloorPlan(site.id)
-                }
-        }
+        try {
+            Timber.d("CAPTURE_INIT: starting")
+            Timber.d("CAPTURE_INIT: sessionManager=$sessionManager")
+            Timber.d("CAPTURE_INIT: activeProjectId=${sessionManager.selectedSite.value?.id}")
 
-        // Safety net — never spin forever
-        viewModelScope.launch {
-            delay(6_000L)
-            if (_floorPlanLoadState.value is com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading) {
-                Timber.w("Floor plan timeout — showing placeholder")
-                _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
+            // Observe activeProjectId as Flow — reacts when project becomes available
+            viewModelScope.launch {
+                sessionManager.selectedSite
+                    .filterNotNull()
+                    .distinctUntilChanged()
+                    .collect { site ->
+                        loadFloorPlan(site.id)
+                    }
             }
+
+            // Safety net — never spin forever
+            viewModelScope.launch {
+                delay(6_000L)
+                if (_floorPlanLoadState.value is com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading) {
+                    Timber.w("Floor plan timeout — showing placeholder")
+                    _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "CAPTURE_INIT crash: ${e.message}")
+            throw e
         }
     }
 
@@ -231,6 +240,7 @@ class PathCaptureViewModel @Inject constructor(
     }
     private suspend fun loadFloorPlan(projectId: String) {
         try {
+            Timber.d("FLOOR_PLAN: loading for project $projectId")
             _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading
             
             // Re-fetch site just in case, but we already have it from sessionManager
@@ -243,7 +253,7 @@ class PathCaptureViewModel @Inject constructor(
                 com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
             }
         } catch (e: Exception) {
-            Timber.e(e, "loadFloorPlan failed")
+            Timber.e(e, "FLOOR_PLAN crash: ${e.message}")
             _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
         }
     }

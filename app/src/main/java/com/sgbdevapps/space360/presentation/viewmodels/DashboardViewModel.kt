@@ -76,13 +76,20 @@ class DashboardViewModel @Inject constructor(
     private fun loadDashboard() {
         viewModelScope.launch {
             val user = authRepository.getCurrentUser().getOrNull()
+            val assignedProjectIds = user?.assignedProjectIds ?: emptyList()
             if (user != null) {
                 _userRole.value = user.role
             }
             _dashboardState.value = DashboardState.Loading
             val sitesResult = siteRepository.getAssignedSites()
             if (sitesResult.isSuccess) {
-                _sites.value = sitesResult.getOrNull() ?: emptyList()
+                val allSites = sitesResult.getOrNull() ?: emptyList()
+                val assignedProjects = if (assignedProjectIds.isNotEmpty() || (user != null && user.role.lowercase() == "contractor")) {
+                    allSites.filter { it.id in assignedProjectIds }
+                } else {
+                    allSites // Manager/Admin see all, or if no filter
+                }
+                _sites.value = assignedProjects
                 // Load recent issues from first site
                 if (_sites.value.isNotEmpty()) {
                     val issuesResult = issueRepository.getIssuesBySite(_sites.value[0].id)
