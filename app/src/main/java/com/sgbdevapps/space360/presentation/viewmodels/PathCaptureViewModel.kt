@@ -27,37 +27,6 @@ class PathCaptureViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val sessionManager: SessionManager
 ) : AndroidViewModel(application) {
-
-    init {
-        try {
-            Timber.d("CAPTURE_INIT: starting")
-            Timber.d("CAPTURE_INIT: sessionManager=$sessionManager")
-            Timber.d("CAPTURE_INIT: activeProjectId=${sessionManager.selectedSite.value?.id}")
-
-            // Observe activeProjectId as Flow — reacts when project becomes available
-            viewModelScope.launch {
-                sessionManager.selectedSite
-                    .filterNotNull()
-                    .distinctUntilChanged()
-                    .collect { site ->
-                        loadFloorPlan(site.id)
-                    }
-            }
-
-            // Safety net — never spin forever
-            viewModelScope.launch {
-                delay(6_000L)
-                if (_floorPlanLoadState.value is com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading) {
-                    Timber.w("Floor plan timeout — showing placeholder")
-                    _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "CAPTURE_INIT crash: ${e.message}")
-            throw e
-        }
-    }
-
     val selectedSite = sessionManager.selectedSite
 
     private val _isLocationPinned = MutableStateFlow(false)
@@ -110,6 +79,36 @@ class PathCaptureViewModel @Inject constructor(
     private var currentPathId: String? = null
     private var timerJob: Job? = null
     private var waypointJob: Job? = null
+
+    init {
+        try {
+            Timber.d("CAPTURE_INIT: starting")
+            Timber.d("CAPTURE_INIT: sessionManager=$sessionManager")
+            Timber.d("CAPTURE_INIT: activeProjectId=${sessionManager.selectedSite.value?.id}")
+
+            // Observe activeProjectId as Flow — reacts when project becomes available
+            viewModelScope.launch {
+                sessionManager.selectedSite
+                    .filterNotNull()
+                    .distinctUntilChanged()
+                    .collect { site ->
+                        loadFloorPlan(site.id)
+                    }
+            }
+
+            // Safety net — never spin forever
+            viewModelScope.launch {
+                delay(6_000L)
+                if (_floorPlanLoadState.value is com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.Loading) {
+                    Timber.w("Floor plan timeout — showing placeholder")
+                    _floorPlanLoadState.value = com.sgbdevapps.space360.presentation.screens.FloorPlanLoadState.NoFloorPlan
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "CAPTURE_INIT crash: ${e.message}")
+            throw e
+        }
+    }
 
     fun startRecording(siteId: String) {
         viewModelScope.launch {
