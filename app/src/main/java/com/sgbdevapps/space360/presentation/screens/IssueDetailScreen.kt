@@ -55,6 +55,7 @@ fun IssueDetailScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
+        timber.log.Timber.d("PHOTO_DEBUG: gallery result uri=$uri")
         uri?.let {
             viewModel.addPhotoToIssue(issueId, it)
         }
@@ -63,28 +64,9 @@ fun IssueDetailScreen(
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        timber.log.Timber.d("PHOTO_DEBUG: camera result success=$success uri=$photoUri")
         if (success && photoUri != null) {
             viewModel.addPhotoToIssue(issueId, photoUri!!)
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            val tempFile = File.createTempFile("capture_", ".jpg", context.cacheDir)
-            photoUri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                tempFile
-            )
-            try {
-                cameraLauncher.launch(photoUri!!)
-            } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "No camera app found", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            android.widget.Toast.makeText(context, "Camera permission denied", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -156,16 +138,7 @@ fun IssueDetailScreen(
                         Text(currentIssue.description, style = MaterialTheme.typography.bodyLarge)
                         
                         Spacer(modifier = Modifier.height(24.dp))
-                        
-                        // Add temporary test button for photo upload diagnostic
-                        Button(onClick = {
-                            timber.log.Timber.d("TEST_PHOTO: button clicked")
-                            val testUri = Uri.parse("android.resource://${context.packageName}/drawable/floor_plan_placeholder")
-                            timber.log.Timber.d("TEST_PHOTO: calling addPhotoToIssue with uri=$testUri")
-                            viewModel.addPhotoToIssue(issueId, testUri)
-                        }) { Text("🧪 Test Photo Upload") }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
+
                         
                         // Photos Section
                         PhotosSection(
@@ -176,12 +149,24 @@ fun IssueDetailScreen(
                         if (showPhotoOptions) {
                             AlertDialog(
                                 onDismissRequest = { showPhotoOptions = false },
-                                title = { Text("Add Photo") },
+                                title = { Text("Add Evidence Photo") },
                                 text = { Text("Choose photo source") },
                                 confirmButton = {
                                     Button(
                                         onClick = {
-                                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                            // CRITICAL: Create URI BEFORE launching camera
+                                            val file = File(
+                                                context.getExternalFilesDir(null),
+                                                "IMG_${System.currentTimeMillis()}.jpg"
+                                            )
+                                            val uri = FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                file
+                                            )
+                                            photoUri = uri
+                                            timber.log.Timber.d("PHOTO_DEBUG: camera uri created = $uri, launching...")
+                                            cameraLauncher.launch(uri)
                                             showPhotoOptions = false
                                         }
                                     ) {
@@ -191,6 +176,7 @@ fun IssueDetailScreen(
                                 dismissButton = {
                                     Button(
                                         onClick = {
+                                            timber.log.Timber.d("PHOTO_DEBUG: gallery launcher starting...")
                                             galleryLauncher.launch("image/*")
                                             showPhotoOptions = false
                                         }

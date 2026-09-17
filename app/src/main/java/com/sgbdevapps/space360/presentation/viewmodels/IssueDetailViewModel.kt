@@ -136,40 +136,42 @@ class IssueDetailViewModel @Inject constructor(
     }
     
     fun addPhotoToIssue(issueId: String, photoUri: Uri) {
-        Timber.d("PHOTO_UPLOAD: method entered issueId=$issueId uri=$photoUri")
         viewModelScope.launch {
             try {
                 _isUploadingPhoto.value = true
-                Timber.d("PHOTO_UPLOAD: opening input stream")
+                Timber.d("PHOTO_UPLOAD: method entered issueId=$issueId uri=$photoUri")
 
                 val contentResolver = context.contentResolver
+                
+                Timber.d("PHOTO_UPLOAD: opening input stream from $photoUri")
                 val inputStream = contentResolver.openInputStream(photoUri)
-                    ?: throw Exception("Cannot open image stream")
+                    ?: throw Exception("Cannot open image stream from $photoUri")
 
                 val bytes = inputStream.readBytes()
                 inputStream.close()
-                
-                Timber.d("PHOTO_UPLOAD: bytes read (${bytes.size}), creating multipart")
+                Timber.d("PHOTO_UPLOAD: read ${bytes.size} bytes from image")
 
-                // FIxing the deprecated RequestBody.create
                 val requestBody = okhttp3.RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
                 val multipart = okhttp3.MultipartBody.Part.createFormData(
                     "photo", "photo_${System.currentTimeMillis()}.jpg", requestBody
                 )
 
-                Timber.d("PHOTO_UPLOAD: calling api.uploadPhoto")
+                Timber.d("PHOTO_UPLOAD: calling backend POST /api/issues/$issueId/photos")
                 api.uploadPhoto(issueId, multipart)
+                Timber.d("PHOTO_UPLOAD: backend response success")
 
-                Timber.d("PHOTO_UPLOAD: upload successful — refreshing issue")
-
+                // CRITICAL: Re-fetch issue to update photos list in UI
+                Timber.d("PHOTO_UPLOAD: re-fetching issue $issueId to refresh UI")
                 val result = issueRepository.getIssueById(issueId)
                 if (result.isSuccess) {
                     _issue.value = result.getOrNull()
                 }
 
-                Timber.i("PHOTO_UPLOAD: Photo uploaded + issue refreshed for $issueId")
+                Timber.i("PHOTO_UPLOAD: success — issue refreshed with new photo")
+
             } catch (e: Exception) {
-                Timber.e(e, "PHOTO_UPLOAD: error — ${e.message}")
+                Timber.e(e, "PHOTO_UPLOAD: FAILED — ${e.message}")
+                _photoUploadError.value = e.message ?: "Photo upload failed"
             } finally {
                 _isUploadingPhoto.value = false
             }

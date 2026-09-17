@@ -75,21 +75,42 @@ class DashboardViewModel @Inject constructor(
 
     private fun loadDashboard() {
         viewModelScope.launch {
-            val user = authRepository.getCurrentUser().getOrNull()
-            val assignedProjectIds = user?.assignedProjectIds ?: emptyList()
-            if (user != null) {
-                _userRole.value = user.role
-            }
-            _dashboardState.value = DashboardState.Loading
-            val sitesResult = siteRepository.getAssignedSites()
-            if (sitesResult.isSuccess) {
-                val allSites = sitesResult.getOrNull() ?: emptyList()
-                val assignedProjects = if (assignedProjectIds.isNotEmpty() || (user != null && user.role.lowercase() == "contractor")) {
-                    allSites.filter { it.id in assignedProjectIds }
-                } else {
-                    allSites // Manager/Admin see all, or if no filter
+            try {
+                Timber.d("PROJECT_FILTER: loading projects")
+                
+                // Get current user
+                val currentUser = authRepository.getCurrentUser().getOrNull()
+                    ?: return@launch
+                
+                Timber.d("PROJECT_FILTER: current user=${currentUser.email} role=${currentUser.role}")
+                _userRole.value = currentUser.role
+                
+                _dashboardState.value = DashboardState.Loading
+
+                // Fetch all projects (sites)
+                val sitesResult = siteRepository.getAssignedSites()
+                val allProjects = sitesResult.getOrNull() ?: emptyList()
+                Timber.d("PROJECT_FILTER: total projects in backend = ${allProjects.size}")
+
+                // Filter by user assignment
+                val assignedProjectIds = currentUser.assignedProjectIds ?: emptyList()
+                val filteredProjects = allProjects.filter { site ->
+                    site.id in assignedProjectIds
                 }
-                _sites.value = assignedProjects
+
+                Timber.d("PROJECT_FILTER: assigned projects = ${filteredProjects.size} (ids: $assignedProjectIds)")
+
+                // If user has no assigned projects but is Admin/Manager, show all
+                val finalProjects = if (filteredProjects.isEmpty() && 
+                    currentUser.role in listOf("Admin", "Manager")) {
+                    Timber.d("PROJECT_FILTER: user is Admin/Manager with no assignments — showing all projects")
+                    allProjects
+                } else {
+                    filteredProjects
+                }
+
+                _sites.value = finalProjects
+                
                 // Load recent issues from first site
                 if (_sites.value.isNotEmpty()) {
                     val issuesResult = issueRepository.getIssuesBySite(_sites.value[0].id)
@@ -97,9 +118,12 @@ class DashboardViewModel @Inject constructor(
                         _recentIssues.value = issuesResult.getOrNull()?.take(5) ?: emptyList()
                     }
                 }
+                
                 _dashboardState.value = DashboardState.Success
-            } else {
-                _dashboardState.value = DashboardState.Error(sitesResult.exceptionOrNull()?.message ?: "Failed to load sites")
+
+            } catch (e: Exception) {
+                Timber.e(e, "PROJECT_FILTER: error — ${e.message}")
+                _dashboardState.value = DashboardState.Error(e.message ?: "Failed to load sites")
             }
         }
     }
