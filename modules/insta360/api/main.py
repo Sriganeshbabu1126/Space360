@@ -19,8 +19,8 @@ pipeline_runner = PipelineRunner(job_manager)
 
 @app.on_event("startup")
 def startup_event():
-    ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
-    if not os.path.exists(ffmpeg_path):
+    ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
+    if not os.path.exists(ffmpeg_path) and ffmpeg_path != "ffmpeg":
         print(f"WARNING: ffmpeg not found at {ffmpeg_path}")
         logger.warning(f"ffmpeg not found at {ffmpeg_path}. Stitching will fail.")
     else:
@@ -32,8 +32,8 @@ def startup_event():
     except Exception as e:
         print(f"❌ MetadataExtractor failed to initialize: {e}")
         
-    exiftool_path = r"F:\exiftool\exiftool.exe"
-    if not os.path.exists(exiftool_path):
+    exiftool_path = os.getenv("EXIFTOOL_PATH", "exiftool")
+    if not os.path.exists(exiftool_path) and exiftool_path != "exiftool":
         print(f"WARNING: exiftool not found at {exiftool_path}")
     else:
         print(f"✅ exiftool found at {exiftool_path}")

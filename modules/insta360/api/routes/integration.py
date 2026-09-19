@@ -20,12 +20,19 @@ def health_check():
     
     gcs_connected = False
     try:
-        from core.uploader import GCSUploader
-        uploader = GCSUploader()
-        if uploader.bucket:
-            gcs_connected = True
-    except Exception:
-        pass
+        from google.cloud import storage
+        import logging
+        logger = logging.getLogger("insta360.health")
+        GCS_BUCKET = os.getenv("GCS_BUCKET", "360-field-check-media-sgb")
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(GCS_BUCKET)
+        bucket.exists()
+        gcs_connected = True
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("insta360.health")
+        logger.warning(f"GCS connection failed: {str(e)}")
+        gcs_connected = False
         
     jm = JobManager()
     active_jobs = sum(1 for j in jm.list_jobs(limit=100) if j.get("status") in ["queued", "running"])

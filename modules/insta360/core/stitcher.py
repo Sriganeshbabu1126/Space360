@@ -84,8 +84,8 @@ class VideoStitcher:
         return results
 
     def _detect_codec(self, file_size_bytes: int) -> dict:
-        ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
-        debug_log = r"F:\Space360\modules\insta360\logs\stitcher_debug.log"
+        ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
+        debug_log = os.getenv("STITCHER_DEBUG_LOG", "/tmp/stitcher_debug.log")
         
         # Large files (>200MB) -> use fast libx264
         if file_size_bytes > 200 * 1024 * 1024:
@@ -135,8 +135,8 @@ class VideoStitcher:
 
     def _run_ffmpeg(self, src: str, dst: str, codec_info: dict) -> tuple[bool, str, float]:
         """Run ffmpeg with timeout protection"""
-        ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
-        debug_log = r"F:\Space360\modules\insta360\logs\stitcher_debug.log"
+        ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
+        debug_log = os.getenv("STITCHER_DEBUG_LOG", "/tmp/stitcher_debug.log")
         
         # Build command
         cmd = [

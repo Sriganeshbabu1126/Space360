@@ -19,8 +19,9 @@ class MetadataExtractor:
         Run full metadata extraction on a single .insv file.
         """
         logger.info(f"Starting metadata extraction for {filepath}")
-        os.makedirs(r"F:\Space360\modules\insta360\logs", exist_ok=True)
-        with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+        log_dir = os.path.dirname(os.getenv("METADATA_DEBUG_LOG", "/tmp/metadata_debug.log"))
+        os.makedirs(log_dir, exist_ok=True)
+        with open(os.getenv("METADATA_DEBUG_LOG", "/tmp/metadata_debug.log"), "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().isoformat()}] Starting extract for {filepath}\n")
         result = {
             "filepath": filepath,
@@ -111,7 +112,7 @@ class MetadataExtractor:
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
-            with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+            with open(os.getenv("METADATA_DEBUG_LOG", "/tmp/metadata_debug.log"), "a", encoding="utf-8") as f:
                 f.write(f"[{datetime.now().isoformat()}] Exception in extract:\n{tb}\n")
             logger.error(f"Unexpected error in extract() for {filepath}: {e}\n{tb}")
             result["errors"].append(f"Unexpected exception: {str(e)} | Traceback: {tb}")
@@ -134,7 +135,7 @@ class MetadataExtractor:
             result["errors"].append(f"Failed to write sidecar: {e}")
             result["extraction_status"] = "failed"
             
-        with open(r"F:\Space360\modules\insta360\logs\metadata_debug.log", "a", encoding="utf-8") as f:
+        with open(os.getenv("METADATA_DEBUG_LOG", "/tmp/metadata_debug.log"), "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().isoformat()}] Extract complete for {filepath}, status: {result['extraction_status']}\n")
             
         return result
@@ -143,7 +144,7 @@ class MetadataExtractor:
         """
         Use subprocess to extract metadata via exiftool.
         """
-        debug_log = r"F:\Space360\modules\insta360\logs\metadata_debug.log"
+        debug_log = os.getenv("METADATA_DEBUG_LOG", "/tmp/metadata_debug.log")
         
         try:
             # Log the call
@@ -151,9 +152,9 @@ class MetadataExtractor:
                 f.write(f"[{datetime.now().isoformat()}] Calling exiftool on {filepath}\n")
                 f.flush()
             
-            # Run exiftool
+            exiftool_path = os.getenv("EXIFTOOL_PATH", "exiftool")
             result = subprocess.run(
-                [r"F:\exiftool\exiftool.exe", "-json", filepath],
+                [exiftool_path, "-json", filepath],
                 capture_output=True,
                 text=True,
                 timeout=10
