@@ -28,7 +28,7 @@ def health_check():
         pass
         
     jm = JobManager()
-    active_jobs = sum(1 for j in jm._jobs.values() if j["status"] in ["queued", "running"])
+    active_jobs = sum(1 for j in jm.list_jobs(limit=100) if j.get("status") in ["queued", "running"])
     
     return {
         "status": "ok",

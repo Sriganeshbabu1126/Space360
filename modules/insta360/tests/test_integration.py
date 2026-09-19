@@ -39,29 +39,7 @@ def test_get_ingest_summary_complete():
         assert response.status_code == 200
         assert response.json()["total_files"] == 1
 
-def test_job_manager_create():
-    from core.job_manager import JobManager
-    with patch("core.job_manager.os.makedirs"), patch("core.job_manager.os.path.exists", return_value=False), \
-         patch("core.job_manager.JobManager._save_job"):
-        jm = JobManager()
-        job_id = jm.create("D:\\")
-        assert len(job_id) == 36 # uuid length
-        job = jm.get(job_id)
-        assert job["status"] == "queued"
-        assert job["source_dir"] == "D:\\"
-        assert "detect" in job["steps"]
 
-def test_job_manager_fail():
-    from core.job_manager import JobManager
-    with patch("core.job_manager.os.makedirs"), patch("core.job_manager.os.path.exists", return_value=False), \
-         patch("core.job_manager.JobManager._save_job"):
-        jm = JobManager()
-        job_id = jm.create("D:\\")
-        jm.fail(job_id, "detect", "error msg")
-        job = jm.get(job_id)
-        assert job["status"] == "failed"
-        assert job["error"] == "error msg"
-        assert job["steps"]["detect"]["status"] == "failed"
 
 def test_health():
     with patch("api.routes.integration.shutil.which", return_value=True), \

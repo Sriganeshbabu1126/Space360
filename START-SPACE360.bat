@@ -21,9 +21,9 @@ if not exist backend\venv (
     echo [1/4] Backend virtual environment found.
 )
 
-:: 2. Fix Backend GCP Credentials pointer
-echo [2/4] Syncing Backend Firebase Credentials...
-powershell -Command "(Get-Content backend\.env) -replace 'gcp-credentials\.json', 'firebase-service-account.json' | Set-Content backend\.env"
+:: 2. Sync Backend GCP Credentials and Cloud Run URL
+echo [2/4] Syncing Backend config (Firebase Credentials & Cloud Run)...
+powershell -Command "(Get-Content backend\.env) -replace 'gcp-credentials\.json', 'firebase-service-account.json' -replace 'INSTA360_MODULE_URL=.*', 'INSTA360_MODULE_URL=https://insta360-module-1046334946412.asia-southeast1.run.app' | Set-Content backend\.env"
 
 :: 3. Sync Dashboard to space360-production
 echo [3/4] Syncing Dashboard Firebase Project to space360-production...
@@ -48,5 +48,6 @@ echo.
 echo Backend:   http://localhost:8000
 echo API Docs:  http://localhost:8000/docs
 echo Dashboard: http://localhost:3000
+echo Insta360 Module: LIVE ON CLOUD RUN (asia-southeast1)
 echo ================================
 pause
