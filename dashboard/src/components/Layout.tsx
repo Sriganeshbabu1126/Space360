@@ -15,7 +15,9 @@ import {
   AlertCircle,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Video,
+  Upload
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useNavigate } from 'react-router-dom';
@@ -58,6 +60,8 @@ const navItems = [
   { name: 'Sites / Projects', path: '/sites', icon: Building2 },
   { name: 'Floor Plans', path: '/floor-plans', icon: Map },
   { name: 'Captures', path: '/captures', icon: Camera },
+  { name: 'Videos', path: '/videos', icon: Video },
+  { name: 'Upload Video', path: '/videos/upload', icon: Upload },
   { name: 'Issues', path: '/issues', icon: AlertCircle },
   { name: 'AI Features', path: '/ai', icon: Sparkles },
   { name: 'Reports', path: '/reports', icon: FileBarChart },
@@ -170,12 +174,28 @@ const Layout: React.FC = () => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <span className="font-bold text-lg text-brand-900 ml-2">Space360</span>
+            <div className="flex flex-col ml-2">
+              <span className="font-bold text-lg text-brand-900 leading-tight">Space360</span>
+              {currentNavItem.path !== '/sites' && selectedSiteId && sites.find(s => s.id === selectedSiteId) && (
+                <span className="text-[10px] font-medium text-brand-600 leading-tight truncate max-w-[150px]">
+                  {sites.find(s => s.id === selectedSiteId)?.name}
+                </span>
+              )}
+            </div>
           </div>
-          <h1 className="text-xl font-semibold text-gray-800 hidden md:block">{currentNavItem.name}</h1>
+          
+          <div className="hidden md:flex items-center gap-4">
+            <h1 className="text-xl font-semibold text-gray-800">{currentNavItem.name}</h1>
+            {currentNavItem.path !== '/sites' && selectedSiteId && sites.find(s => s.id === selectedSiteId) && (
+              <div className="px-3 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-full text-sm font-medium flex items-center">
+                <Building2 className="w-4 h-4 mr-1.5 opacity-70" />
+                Current Project: {sites.find(s => s.id === selectedSiteId)?.name}
+              </div>
+            )}
+          </div>
           
           <div className="flex items-center gap-4">
-            <SiteSelector />
+            {/* SiteSelector has been moved to SitesPage */}
           </div>
         </header>
         

@@ -2,15 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Upload, Eye, MapPin, Plus, List, Map, FileText, Camera, Check, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { getSites, getFloorPlans, getLocations, uploadFloorPlan, createLocation, deleteFloorPlan } from '../services/api';
+import { getFloorPlans, getLocations, uploadFloorPlan, createLocation, deleteFloorPlan } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useSite } from '../context/SiteContext';
+import { useSiteContext } from '../context/SiteContext';
 
 const FloorPlansPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const { selectedSiteId, setSelectedSiteId } = useSite();
+  const { selectedSiteId, sites } = useSiteContext();
   const navigate = useNavigate();
-  const [sites, setSites] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -31,18 +30,6 @@ const FloorPlansPage: React.FC = () => {
 
   useEffect(() => {
     document.title = "Floor Plans | Space360";
-    const fetchSites = async () => {
-      try {
-        const res = await getSites();
-        setSites(res.data);
-        if (res.data.length > 0 && !selectedSiteId) {
-          setSelectedSiteId(res.data[0].id);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchSites();
   }, []);
 
   useEffect(() => {
@@ -318,26 +305,21 @@ const FloorPlansPage: React.FC = () => {
     );
   }
 
+  if (!selectedSiteId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Map className="w-16 h-16 text-gray-300 mb-4" />
+        <h2 className="text-xl font-bold text-gray-700">No Site Selected</h2>
+        <p className="text-gray-500 mt-2">Please go to the Sites page and select a site first.</p>
+        <button onClick={() => navigate('/sites')} className="mt-6 btn-primary">Go to Sites</button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
-        <div className="flex flex-col w-full sm:w-1/2 md:w-1/3">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Site</label>
-          <div className="relative">
-            <select 
-              className="appearance-none w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold text-lg py-3 px-4 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer shadow-sm hover:bg-white"
-              value={selectedSiteId || ''}
-              onChange={(e) => setSelectedSiteId(e.target.value)}
-            >
-              {sites.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
+
         <button onClick={() => setShowUploadModal(true)} className="btn-primary flex items-center shadow-lg hover:shadow-xl py-3 px-6 w-full sm:w-auto justify-center rounded-xl font-bold text-base transition-all hover:-translate-y-0.5">
           <Upload className="w-5 h-5 mr-2" />
           Upload Floor Plan

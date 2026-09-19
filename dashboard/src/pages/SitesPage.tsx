@@ -1,15 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSites, createSite } from '../services/api';
-import { MapPin, Plus, X } from 'lucide-react';
+import { ChevronDown, MapPin, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { useSite } from '../context/SiteContext';
+import { useSiteContext } from '../context/SiteContext';
+
+const SiteSelector = () => {
+  const { sites, selectedSiteId, setSelectedSiteId, loading } = useSiteContext();
+  const navigate = useNavigate();
+
+  if (loading || sites.length === 0) return null;
+
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSiteId = e.target.value;
+    setSelectedSiteId(newSiteId);
+  };
+
+  return (
+    <div className="relative group mr-4">
+      <select 
+        value={selectedSiteId || ''} 
+        onChange={handleChange}
+        className="appearance-none bg-brand-50 border border-brand-200 text-brand-800 text-sm font-medium rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shadow-sm transition-shadow"
+      >
+        <option value="" disabled>Select Site...</option>
+        {sites.map(site => (
+          <option key={site.id} value={site.id}>{site.name}</option>
+        ))}
+      </select>
+      <ChevronDown className="w-4 h-4 text-brand-600 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+    </div>
+  );
+};
 
 const SitesPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { setSelectedSiteId } = useSite();
+  const { setSelectedSiteId } = useSiteContext();
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,17 +81,20 @@ const SitesPage: React.FC = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">All Construction Sites</h2>
-        {isAdmin ? (
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary flex items-center"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Site
-          </button>
-        ) : (
-          <span className="text-sm text-gray-500 font-medium">Only admins can create sites.</span>
-        )}
+        <div className="flex items-center">
+          <SiteSelector />
+          {isAdmin ? (
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="btn-primary flex items-center"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Site
+            </button>
+          ) : (
+            <span className="text-sm text-gray-500 font-medium">Only admins can create sites.</span>
+          )}
+        </div>
       </div>
 
       {loading ? (

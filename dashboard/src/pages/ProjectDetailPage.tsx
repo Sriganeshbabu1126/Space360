@@ -6,13 +6,13 @@ import {
   Map, Activity, AlertCircle, CheckCircle2, ChevronRight, HardHat, Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useSite } from '../context/SiteContext';
+import { useSiteContext } from '../context/SiteContext';
 
 const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { setSelectedSiteId } = useSite();
+  const { setSelectedSiteId } = useSiteContext();
   
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);

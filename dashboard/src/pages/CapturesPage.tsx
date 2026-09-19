@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Camera, Filter, Upload, MapPin, X, Eye, Trash2 } from 'lucide-react';
+import { Camera, Filter, Upload, MapPin, X, Eye, Trash2, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getSites, getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment, uploadIssuePhoto, sendIssueNotification } from '../services/api';
+import { getFloorPlans, getLocations, getAllSessions, uploadSession, deleteSession, createIssue, addIssueComment, uploadIssuePhoto, sendIssueNotification, uploadVideoIngest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
 import CreateIssueModal from '../components/CreateIssueModal';
 import FrameTimelineViewer from '../components/FrameTimelineViewer';
-import { useSite } from '../context/SiteContext';
+import { useSiteContext } from '../context/SiteContext';
 
 const CapturesPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const { selectedSiteId } = useSite();
+  const { selectedSiteId, sites } = useSiteContext();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const locationParam = searchParams.get('location_id');
   const highlightParam = searchParams.get('highlight');
@@ -22,12 +23,10 @@ const CapturesPage: React.FC = () => {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCaptureForIssue, setSelectedCaptureForIssue] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [filterSiteId, setFilterSiteId] = useState<string>('');
   const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
   const [selectedFrameForIssue, setSelectedFrameForIssue] = useState<any>(null);
 
   // Modal states
-  const [sites, setSites] = useState<any[]>([]);
   const [floorPlans, setFloorPlans] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   
@@ -40,15 +39,23 @@ const CapturesPage: React.FC = () => {
   const [capturedAt, setCapturedAt] = useState(() => new Date().toISOString().split('T')[0]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Video specific state
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedJobId, setUploadedJobId] = useState<string | null>(null);
 
   const fetchCaptures = async () => {
+    if (!selectedSiteId) return;
     setLoading(true);
     try {
-      const res = await getAllSessions(filterSiteId || undefined);
+      const res = await getAllSessions(selectedSiteId);
       let data = res.data;
       
       if (locationParam) {
-        data = data.filter((c: any) => c.location_point_id === locationParam);
+        data = data.filter((c: any) => c.location_point_id === locationParam || c.location_point_id === null);
       }
       
       setCaptures(data);
@@ -79,25 +86,15 @@ const CapturesPage: React.FC = () => {
   useEffect(() => {
     document.title = "Captures | Space360";
     fetchCaptures();
-  }, [filterSiteId]);
+  }, [selectedSiteId]);
 
   useEffect(() => {
     const hasPending = captures.some(c => c.processing_status === 'pending');
-    if (hasPending) {
+    if (hasPending && selectedSiteId) {
       const interval = setInterval(fetchCaptures, 5000);
       return () => clearInterval(interval);
     }
-  }, [captures]);
-
-  // Load sites once for both the filter and the modal
-  useEffect(() => {
-    getSites().then(res => {
-      console.log('Fetched sites:', res.data);
-      setSites(res.data);
-    }).catch(console.error);
-  }, []);
-
-  console.log('Current sites state:', sites);
+  }, [captures, selectedSiteId]);
 
   const handleOpenModal = () => {
     setShowModal(true);
@@ -167,6 +164,50 @@ const CapturesPage: React.FC = () => {
     }
   };
 
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const f = e.target.files[0];
+      const isVideo = f.name.toLowerCase().endsWith('.insv') || f.name.toLowerCase().endsWith('.mp4');
+      if (!isVideo) {
+        toast.error('Only .insv and .mp4 video files are allowed.');
+        return;
+      }
+      setVideoFile(f);
+      setUploadedJobId(null);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleVideoUpload = async () => {
+    if (!modalSiteId || !videoFile) {
+      toast.error('Please select a site and choose a video file');
+      return;
+    }
+    setVideoUploading(true);
+    setUploadProgress(0);
+    try {
+      const res = await uploadVideoIngest(modalSiteId, videoFile, (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      });
+      
+      if (res.data && res.data.job_id) {
+        setUploadedJobId(res.data.job_id);
+        toast.success('Video uploaded successfully!');
+        setVideoFile(null);
+      } else {
+        throw new Error('Upload failed: No job ID returned');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || 'Video upload failed');
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
   const [selectedSequenceData, setSelectedSequenceData] = useState<any>(null);
 
   const handleView360 = (e: React.MouseEvent, capture: any) => {
@@ -194,25 +235,20 @@ const CapturesPage: React.FC = () => {
     }
   };
 
+  if (!selectedSiteId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Camera className="w-16 h-16 text-gray-300 mb-4" />
+        <h2 className="text-xl font-bold text-gray-700">No Site Selected</h2>
+        <p className="text-gray-500 mt-2">Please go to the Sites page and select a site first.</p>
+        <button onClick={() => navigate('/sites')} className="mt-6 btn-primary">Go to Sites</button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 relative">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
-        <div className="flex flex-col w-full sm:w-1/2 md:w-1/3">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Site</label>
-          <div className="relative">
-            <select 
-              className="appearance-none w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold text-lg py-3 px-4 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer shadow-sm hover:bg-white"
-              value={filterSiteId || ''}
-              onChange={e => setFilterSiteId(e.target.value)}
-            >
-              <option value="">All Sites</option>
-              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200 gap-6 mb-8">
         <button onClick={handleOpenModal} className="btn-primary flex items-center shadow-lg hover:shadow-xl py-3 px-6 w-full sm:w-auto justify-center rounded-xl font-bold text-base transition-all hover:-translate-y-0.5">
           <Upload className="w-5 h-5 mr-2" />
           Upload Capture
@@ -222,7 +258,7 @@ const CapturesPage: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight">Site Captures</h2>
-          <p className="text-gray-500 mt-1 font-medium">Browse 360° photos and video sequences for {filterSiteId ? sites.find(s => s.id === filterSiteId)?.name : 'all sites'}.</p>
+          <p className="text-gray-500 mt-1 font-medium">Browse 360° photos and video sequences for {sites.find(s => s.id === selectedSiteId)?.name || 'this site'}.</p>
         </div>
         <div className="hidden sm:flex items-center bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-bold text-sm border border-brand-100 shadow-sm">
           <Camera className="w-4 h-4 mr-2 opacity-70" />
@@ -244,7 +280,16 @@ const CapturesPage: React.FC = () => {
                 {c.thumbnail_url || c.image_url ? (
                   <img src={c.thumbnail_url || c.image_url} alt="thumbnail" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100"><Camera className="w-8 h-8 text-gray-300" /></div>
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    {c.location_point_id === null ? (
+                      <div className="text-center flex flex-col items-center">
+                        <Video className="w-8 h-8 text-brand-400 mb-2" />
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Video Job</span>
+                      </div>
+                    ) : (
+                      <Camera className="w-8 h-8 text-gray-300" />
+                    )}
+                  </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   {c.processing_status === 'pending' ? (
@@ -362,11 +407,65 @@ const CapturesPage: React.FC = () => {
                 <textarea className="input w-full text-sm" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add any capture notes..."></textarea>
               </div>
             </div>
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h4 className="text-lg font-bold text-gray-900 mb-4">360° Video (INSV/MP4)</h4>
+              <div>
+                <input type="file" ref={videoFileInputRef} onChange={handleVideoFileChange} accept=".insv,.mp4,video/mp4" className="hidden" />
+                <div onClick={() => videoFileInputRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-colors mb-4">
+                  {videoFile ? (
+                    <div>
+                      <p className="font-bold text-brand-600 text-sm truncate">{videoFile.name}</p>
+                      <p className="text-xs text-gray-500">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">
+                      <Upload className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                      <p className="text-sm">Click to browse video files</p>
+                    </div>
+                  )}
+                </div>
+                
+                {videoUploading && (
+                  <div className="mb-4">
+                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-brand-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 text-center mt-1">Uploading... {uploadProgress}%</p>
+                  </div>
+                )}
+                
+                {uploadedJobId && (
+                  <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col items-center">
+                    <p className="font-bold text-lg mb-1">✅ Video uploaded!</p>
+                    <p className="mb-3">Job ID: {uploadedJobId}</p>
+                    <a href={`/videos/${uploadedJobId}/status`} className="text-brand-600 hover:text-brand-800 underline font-semibold mb-4 text-center block">Track progress</a>
+                    
+                    <button 
+                      onClick={() => {
+                        setUploadedJobId(null);
+                        setVideoFile(null);
+                        setShowModal(false);
+                        fetchCaptures();
+                      }}
+                      className="btn-primary px-8 py-2 font-bold w-full max-w-xs mx-auto"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+                
+                {!uploadedJobId && (
+                  <button onClick={handleVideoUpload} disabled={videoUploading || !videoFile || !modalSiteId} className="w-full btn-primary px-6 py-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                    {videoUploading ? 'Uploading Video...' : 'Upload Video'}
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
               <button onClick={handleUpload} disabled={uploading || !selectedLocationId || !file} className="btn-primary px-6 py-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                {uploading ? 'Uploading...' : 'Upload'}
+                {uploading ? 'Uploading Image...' : 'Upload Image'}
               </button>
             </div>
           </div>

@@ -14,6 +14,8 @@ import ReportsPage from './pages/ReportsPage';
 import FloorPlansPage from './pages/FloorPlansPage';
 import ProjectMembersPage from './pages/ProjectMembersPage';
 import IssuesPage from './pages/IssuesPage';
+import VideosPage from './pages/VideosPage';
+import VideoUploadPage from './pages/VideoUploadPage';
 
 import HomePage from './pages/HomePage';
 
@@ -41,6 +43,8 @@ const AppRoutes = () => (
       <Route path="members" element={<ProjectMembersPage />} />
       <Route path="ai" element={<AIFeaturesPage />} />
       <Route path="reports" element={<ReportsPage />} />
+      <Route path="videos" element={<VideosPage />} />
+      <Route path="videos/upload" element={<VideoUploadPage />} />
     </Route>
   </Routes>
 );

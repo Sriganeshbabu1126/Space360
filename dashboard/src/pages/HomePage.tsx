@@ -6,7 +6,7 @@ import {
   AlertCircle, CheckCircle2, Folder, Clock, Calendar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useSite } from '../context/SiteContext';
+import { useSiteContext } from '../context/SiteContext';
 
 interface ProjectStats {
   total_issues: number;
@@ -36,7 +36,7 @@ const HomePage: React.FC = () => {
   const [search, setSearch] = useState('');
   
   const { isAdmin } = useAuth();
-  const { setSelectedSiteId } = useSite();
+  const { setSelectedSiteId } = useSiteContext();
   const navigate = useNavigate();
 
   useEffect(() => {

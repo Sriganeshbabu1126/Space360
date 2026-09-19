@@ -43,6 +43,8 @@ app.include_router(issues.router, prefix="/issues",
 app.include_router(dashboard.router, prefix="/dashboard", 
                    tags=["Dashboard"])
 app.include_router(paths.router, prefix="/api", tags=["Paths"])
+from app.routers import insta360_videos
+app.include_router(insta360_videos.router, prefix="/api", tags=["videos"])
 app.include_router(video.router)
 app.include_router(correlation.router)
 

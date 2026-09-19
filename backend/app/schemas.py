@@ -160,7 +160,8 @@ class CaptureFrameResponse(BaseModel):
 # --- CaptureSession Schemas ---
 class CaptureSessionResponse(BaseModel):
     id: str
-    location_point_id: str
+    location_point_id: Optional[str] = None
+    location_label: Optional[str] = None
     captured_at: datetime
     image_url: Optional[str]
     thumbnail_url: Optional[str]

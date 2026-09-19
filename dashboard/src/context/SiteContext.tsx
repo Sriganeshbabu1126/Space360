@@ -5,6 +5,8 @@ import { useAuth } from './AuthContext';
 interface Site {
   id: string;
   name: string;
+  address?: string;
+  status?: string;
 }
 
 interface SiteContextType {
@@ -16,13 +18,25 @@ interface SiteContextType {
 
 const SiteContext = createContext<SiteContextType>({} as SiteContextType);
 
+// Using useSiteContext as per instructions, but keeping useSite as alias in case other places aren't updated yet.
+export const useSiteContext = () => useContext(SiteContext);
 export const useSite = () => useContext(SiteContext);
 
 export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAdmin } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedSiteId');
+  });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (selectedSiteId) {
+      localStorage.setItem('selectedSiteId', selectedSiteId);
+    } else {
+      localStorage.removeItem('selectedSiteId');
+    }
+  }, [selectedSiteId]);
 
   useEffect(() => {
     const fetchSites = async () => {
@@ -37,6 +51,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isAdmin) {
           const res = await getSites();
           setSites(res.data);
+          // If no site is selected, or selected site is not in the list (though this check can be improved later)
           if (res.data.length > 0 && !selectedSiteId) {
             setSelectedSiteId(res.data[0].id);
           }

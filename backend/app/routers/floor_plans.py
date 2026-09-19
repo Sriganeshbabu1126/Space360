@@ -18,8 +18,20 @@ def list_floor_plans(site_id: str, db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == site_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    return db.query(FloorPlan).filter(
-        FloorPlan.site_id == site_id).all()
+    
+    plans = db.query(FloorPlan).filter(FloorPlan.site_id == site_id).all()
+    for plan in plans:
+        if plan.image_url and "storage.googleapis.com" in plan.image_url:
+            # Extract the path excluding the bucket to regenerate signed url
+            # e.g., https://storage.googleapis.com/bucket-name/sites/...
+            import urllib.parse
+            parsed = urllib.parse.urlparse(plan.image_url)
+            path_parts = parsed.path.lstrip('/').split('/')
+            blob_path = '/'.join(path_parts[1:])
+            # For local or non-GCS urls, we just let them be, but here we regenerate
+            plan.image_url = get_signed_url(blob_path)
+            
+    return plans
 
 @router.post("/site/{site_id}", response_model=FloorPlanResponse,
              status_code=201)
@@ -67,6 +79,14 @@ def get_floor_plan(floor_plan_id: str,
     if not fp:
         raise HTTPException(status_code=404, 
                             detail="Floor plan not found")
+    
+    if fp.image_url and "storage.googleapis.com" in fp.image_url:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(fp.image_url)
+        path_parts = parsed.path.lstrip('/').split('/')
+        blob_path = '/'.join(path_parts[1:])
+        fp.image_url = get_signed_url(blob_path)
+        
     return fp
 
 @router.delete("/{floor_plan_id}", status_code=204)
