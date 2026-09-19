@@ -1,0 +1,1 @@
+Archived prompt for AG_PROMPT_08_frontend_components.md
