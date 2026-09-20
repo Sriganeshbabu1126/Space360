@@ -341,6 +341,7 @@ class PathPoint(Base):
     heading = Column(Float, nullable=True)
     accuracy = Column(Float, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp_seconds = Column(Float, nullable=True)
     
     path = relationship("Path", back_populates="waypoints")
 
@@ -383,3 +384,32 @@ class FrameGpsCorrelation(Base):
     confidence = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class InspectionPath(Base):
+    __tablename__ = "inspection_paths"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=False)
+    floor_plan_id = Column(String, ForeignKey("floor_plans.id"), nullable=False)
+    name = Column(String, nullable=False)
+    created_by = Column(String, nullable=False)  # User ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    points = relationship("InspectionPathPoint", back_populates="inspection_path", cascade="all, delete-orphan")
+
+class InspectionPathPoint(Base):
+    __tablename__ = "inspection_path_points"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    path_id = Column(String, ForeignKey("inspection_paths.id"), nullable=False)
+    sequence_order = Column(Integer, nullable=False)
+    x_percent = Column(Float, nullable=False)
+    y_percent = Column(Float, nullable=False)
+    label = Column(String, nullable=True)
+    capture_id = Column(String, ForeignKey("capture_sessions.id"), nullable=True)
+    video_job_id = Column(String, nullable=True)
+    timestamp_seconds = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    inspection_path = relationship("InspectionPath", back_populates="points")

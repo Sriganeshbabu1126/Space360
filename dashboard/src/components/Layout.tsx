@@ -70,10 +70,11 @@ const navItems = [
 
 const Layout: React.FC = () => {
   const { user, isAdmin, signOut } = useAuth();
+  const { selectedSiteId, sites } = useSite();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const currentNavItem = navItems.find(item => item.path === location.pathname) || { name: 'Dashboard' };
+  const currentNavItem = navItems.find(item => item.path === location.pathname) || { name: 'Dashboard', path: '' };
 
   const displayedNavItems = navItems.filter(item => {
     if (item.name === 'Project Members' && !isAdmin) return false;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAllSessions, getSites } from '../services/api';
-import { Link2, Link2Off, Download } from 'lucide-react';
+import { Link2, Link2Off, Download, Play, Pause, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
+import { analyzeVisualChanges } from '../services/aiAnalysis';
 
 declare global {
   interface Window {
@@ -17,6 +18,12 @@ const ComparePage: React.FC = () => {
   const [sessionAId, setSessionAId] = useState<string>('');
   const [sessionBId, setSessionBId] = useState<string>('');
   const [isSynced, setIsSynced] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<string>('');
 
   const viewerARef = useRef<HTMLDivElement>(null);
   const viewerBRef = useRef<HTMLDivElement>(null);
@@ -56,40 +63,98 @@ const ComparePage: React.FC = () => {
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
+  const isVideoCapture = (capture: any) => capture?.type === 'video' || !!capture?.job_id;
+  const isVideoA = isVideoCapture(sessionA);
+  const isVideoB = isVideoCapture(sessionB);
+  const isMixedType = sessionA && sessionB && (isVideoA !== isVideoB);
+
+  const videoAElement = useRef<HTMLVideoElement | null>(null);
+  const videoBElement = useRef<HTMLVideoElement | null>(null);
+
   // Initialize Viewer A
   useEffect(() => {
-    if (sessionA && sessionA.image_url && viewerARef.current && window.pannellum) {
-      pannellumA.current = window.pannellum.viewer(viewerARef.current, {
+    if (sessionA && (sessionA.image_url || sessionA.video_url) && viewerARef.current && window.pannellum) {
+      const isVideo = isVideoCapture(sessionA);
+      const url = isVideo ? (sessionA.video_url || sessionA.image_url) : sessionA.image_url;
+      
+      let config: any = {
         type: 'equirectangular',
-        panorama: sessionA.image_url,
         autoLoad: true,
         compass: false,
         showFullscreenCtrl: false,
-      });
+      };
+
+      if (isVideo) {
+        const videoElement = document.createElement('video');
+        videoElement.src = url;
+        videoElement.crossOrigin = 'anonymous';
+        videoElement.muted = true;
+        videoElement.loop = true;
+        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
+        
+        videoAElement.current = videoElement;
+        config.panorama = videoElement;
+        config.dynamic = true;
+      } else {
+        videoAElement.current = null;
+        config.panorama = url;
+      }
+
+      pannellumA.current = window.pannellum.viewer(viewerARef.current, config);
     }
     return () => {
       if (pannellumA.current) {
         pannellumA.current.destroy();
         pannellumA.current = null;
       }
+      if (videoAElement.current) {
+        videoAElement.current.pause();
+        videoAElement.current.src = "";
+        videoAElement.current = null;
+      }
     };
   }, [sessionA]);
 
   // Initialize Viewer B
   useEffect(() => {
-    if (sessionB && sessionB.image_url && viewerBRef.current && window.pannellum) {
-      pannellumB.current = window.pannellum.viewer(viewerBRef.current, {
+    if (sessionB && (sessionB.image_url || sessionB.video_url) && viewerBRef.current && window.pannellum) {
+      const isVideo = isVideoCapture(sessionB);
+      const url = isVideo ? (sessionB.video_url || sessionB.image_url) : sessionB.image_url;
+      
+      let config: any = {
         type: 'equirectangular',
-        panorama: sessionB.image_url,
         autoLoad: true,
         compass: false,
         showFullscreenCtrl: false,
-      });
+      };
+
+      if (isVideo) {
+        const videoElement = document.createElement('video');
+        videoElement.src = url;
+        videoElement.crossOrigin = 'anonymous';
+        videoElement.muted = true;
+        videoElement.loop = true;
+        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
+        
+        videoBElement.current = videoElement;
+        config.panorama = videoElement;
+        config.dynamic = true;
+      } else {
+        videoBElement.current = null;
+        config.panorama = url;
+      }
+
+      pannellumB.current = window.pannellum.viewer(viewerBRef.current, config);
     }
     return () => {
       if (pannellumB.current) {
         pannellumB.current.destroy();
         pannellumB.current = null;
+      }
+      if (videoBElement.current) {
+        videoBElement.current.pause();
+        videoBElement.current.src = "";
+        videoBElement.current = null;
       }
     };
   }, [sessionB]);
@@ -128,8 +193,74 @@ const ComparePage: React.FC = () => {
     };
   }, [isSynced]);
 
+  // Video Sync Effect
+  useEffect(() => {
+    let animFrame: number;
+    const syncVideos = () => {
+      if (videoAElement.current && videoBElement.current) {
+        setProgress(videoAElement.current.currentTime);
+        setDuration(videoAElement.current.duration || 0);
+
+        if (Math.abs(videoAElement.current.currentTime - videoBElement.current.currentTime) > 0.1) {
+          videoBElement.current.currentTime = videoAElement.current.currentTime;
+        }
+      }
+      animFrame = requestAnimationFrame(syncVideos);
+    };
+    if (isVideoA && isVideoB && !isMixedType) {
+      animFrame = requestAnimationFrame(syncVideos);
+    }
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [isVideoA, isVideoB, isMixedType]);
+
+  const togglePlay = () => {
+    if (videoAElement.current && videoBElement.current) {
+      if (isPlaying) {
+        videoAElement.current.pause();
+        videoBElement.current.pause();
+      } else {
+        videoAElement.current.play();
+        videoBElement.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (videoAElement.current && videoBElement.current) {
+      videoAElement.current.currentTime = time;
+      videoBElement.current.currentTime = time;
+      setProgress(time);
+    }
+  };
+
   const onViewerAInteract = () => { activeViewer.current = 'A'; };
   const onViewerBInteract = () => { activeViewer.current = 'B'; };
+
+  const handleAnalyzeChanges = async () => {
+    if (!sessionA || !sessionB) return;
+    
+    setIsAnalyzing(true);
+    setAiResult('');
+    const toastId = toast.loading('Analyzing changes...');
+    
+    try {
+      const urlA = sessionA.thumbnail_url || sessionA.image_url;
+      const urlB = sessionB.thumbnail_url || sessionB.image_url;
+      
+      const result = await analyzeVisualChanges(urlA, urlB);
+      setAiResult(result);
+      toast.success('Analysis complete', { id: toastId });
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Failed to analyze changes', { id: toastId });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const fetchImageAsBase64 = async (url: string) => {
     const res = await fetch(url);
@@ -333,7 +464,52 @@ const ComparePage: React.FC = () => {
             <div className="flex-1 bg-gray-900 flex items-center justify-center text-gray-500">Right view not selected</div>
           )}
         </div>
+        {/* Mixed Type Warning */}
+        {isMixedType && (
+          <div className="absolute inset-0 flex items-center justify-center text-orange-500 z-10 bg-gray-50/95 font-medium text-lg">
+            Please select the same type of capture (both images or both videos) to compare.
+          </div>
+        )}
+
+        {/* Video Controls */}
+        {isVideoA && isVideoB && !isMixedType && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-black/80 rounded-full px-6 py-3 flex items-center space-x-4 shadow-xl">
+            <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none">
+              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+            </button>
+            <input 
+              type="range" 
+              min={0} 
+              max={duration || 100} 
+              step="0.01" 
+              value={progress} 
+              onChange={handleSeek} 
+              className="w-64 accent-brand-500" 
+            />
+          </div>
+        )}
       </div>
+
+      {/* AI Analysis Section */}
+      {sessionA && sessionB && !isMixedType && (
+        <div className="card shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-800 flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-brand-500" /> AI Change Analysis
+            </h3>
+            <button 
+              onClick={handleAnalyzeChanges} 
+              disabled={isAnalyzing}
+              className="px-4 py-1.5 bg-brand-100 text-brand-700 rounded-md text-sm font-medium hover:bg-brand-200 disabled:opacity-50"
+            >
+              {isAnalyzing ? "Analyzing..." : "Analyze Changes"}
+            </button>
+          </div>
+          <div className="text-sm text-gray-600 bg-gray-50 rounded p-4 border border-gray-100 min-h-[60px] whitespace-pre-wrap">
+            {aiResult || "Click 'Analyze Changes' to identify visual differences between these two captures."}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -212,7 +212,9 @@ const CapturesPage: React.FC = () => {
 
   const handleView360 = (e: React.MouseEvent, capture: any) => {
     e.stopPropagation();
-    if (capture.frames && capture.frames.length > 0) {
+    if (capture.location_label === '360° Video Sequence' || capture.location_point_id === null) {
+      navigate(`/videos/${capture.id}/status`);
+    } else if (capture.frames && capture.frames.length > 0) {
       setSelectedSequenceData(capture);
     } else if (capture.image_url) {
       setViewerUrl(capture.image_url);
@@ -277,18 +279,19 @@ const CapturesPage: React.FC = () => {
           {captures.map(c => (
             <div id={`capture-${c.id}`} key={c.id} className={`card p-0 overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 group hover:-translate-y-1 ${highlightedCapture === c.id ? 'ring-4 ring-brand-500 shadow-xl' : ''}`}>
               <div className="h-48 relative overflow-hidden bg-gray-200">
-                {c.thumbnail_url || c.image_url ? (
+                {c.location_point_id === null ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50 border border-indigo-100">
+                    <Video className="w-12 h-12 text-indigo-500 mb-2" />
+                    <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded">360° VIDEO</span>
+                    <span className="mt-2 text-[10px] font-medium text-indigo-500 uppercase tracking-wider bg-white px-2 py-0.5 rounded shadow-sm border border-indigo-100">
+                      {c.processing_status || 'queued'}
+                    </span>
+                  </div>
+                ) : c.thumbnail_url || c.image_url ? (
                   <img src={c.thumbnail_url || c.image_url} alt="thumbnail" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    {c.location_point_id === null ? (
-                      <div className="text-center flex flex-col items-center">
-                        <Video className="w-8 h-8 text-brand-400 mb-2" />
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Video Job</span>
-                      </div>
-                    ) : (
-                      <Camera className="w-8 h-8 text-gray-300" />
-                    )}
+                    <Camera className="w-8 h-8 text-gray-300" />
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

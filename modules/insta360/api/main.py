@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel
+import tempfile
 from api.routes import integration
 from core.job_manager import JobManager
 from core.pipeline_runner import PipelineRunner
@@ -41,15 +42,71 @@ def startup_event():
 app.include_router(integration.router)
 
 class IngestAsyncRequest(BaseModel):
-    source_dir: str
+    source_dir: str = None
+    gcs_uri: str = None
+
+from fastapi import Request
+from google.cloud import storage
 
 @app.post("/ingest", status_code=202)
-def ingest_async(request: IngestAsyncRequest):
-    if not os.path.exists(request.source_dir):
+async def ingest_async(request: Request):
+    actual_source_dir = None
+    gcs_uri = None
+    file = None
+    is_temp = False
+    
+    try:
+        body = await request.json()
+        actual_source_dir = body.get("source_dir")
+        gcs_uri = body.get("gcs_uri")
+    except Exception:
+        form = await request.form()
+        actual_source_dir = form.get("source_dir")
+        gcs_uri = form.get("gcs_uri")
+        file = form.get("file")
+
+    if gcs_uri:
+        tmp_dir = tempfile.mkdtemp()
+        is_temp = True
+        try:
+            client = storage.Client()
+            uri = gcs_uri.replace("gs://", "")
+            bucket_name = uri.split("/")[0]
+            blob_path = "/".join(uri.split("/")[1:])
+            filename = blob_path.split("/")[-1]
+            
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+            # Must place in DCIM folder for CameraDetector.list_insv_files to find it
+            dcim_dir = os.path.join(tmp_dir, "DCIM")
+            os.makedirs(dcim_dir, exist_ok=True)
+            local_path = os.path.join(dcim_dir, filename)
+            blob.download_to_filename(local_path)
+            
+            actual_source_dir = tmp_dir
+        except Exception as e:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise HTTPException(status_code=400, detail=f"GCS download failed: {e}")
+            
+    elif file and hasattr(file, "filename"):
+        tmp_dir = tempfile.mkdtemp()
+        is_temp = True
+        dcim_dir = os.path.join(tmp_dir, "DCIM")
+        os.makedirs(dcim_dir, exist_ok=True)
+        file_path = os.path.join(dcim_dir, file.filename)
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        actual_source_dir = tmp_dir
+            
+    if not actual_source_dir:
+        raise HTTPException(status_code=400, detail="Either gcs_uri, file or source_dir required")
+        
+    if not os.path.exists(actual_source_dir):
         raise HTTPException(status_code=404, detail="source_dir does not exist")
         
-    job_id = job_manager.create(request.source_dir)
-    pipeline_runner.run(job_id, request.source_dir)
+    job_id = job_manager.create(actual_source_dir)
+    pipeline_runner.run(job_id, actual_source_dir, cleanup=is_temp)
     
     return {
         "job_id": job_id,

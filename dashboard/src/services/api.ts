@@ -173,3 +173,4 @@ export const uploadVideoIngest = (
     onUploadProgress
   });
 };
+export const getVideoJobStatus = (jobId: string) => api.get(`/api/videos/${jobId}/status`);

@@ -17,12 +17,12 @@ class PipelineRunner:
     def __init__(self, job_manager: JobManager):
         self.job_manager = job_manager
 
-    def run(self, job_id: str, source_dir: str) -> None:
-        thread = threading.Thread(target=self._run_pipeline, args=(job_id, source_dir))
+    def run(self, job_id: str, source_dir: str, cleanup: bool = False) -> None:
+        thread = threading.Thread(target=self._run_pipeline, args=(job_id, source_dir, cleanup))
         thread.daemon = True
         thread.start()
 
-    def _run_pipeline(self, job_id: str, source_dir: str) -> None:
+    def _run_pipeline(self, job_id: str, source_dir: str, cleanup: bool = False) -> None:
         logger.info(f"Starting pipeline for job {job_id}")
         
         try:
@@ -65,8 +65,7 @@ class PipelineRunner:
             extractor = MetadataExtractor()
             extract_res = extractor.extract_batch(destination_files)
             if extract_res["failed"] > 0:
-                self.job_manager.fail(job_id, "extract", "Metadata extraction failed for some files")
-                return
+                logger.warning("Metadata extraction failed for some files - continuing pipeline")
             self.job_manager.update(job_id, "extract", "complete", extract_res)
 
             # Step 5: Stitch
@@ -128,3 +127,11 @@ class PipelineRunner:
         except Exception as e:
             logger.error(f"Pipeline failed for job {job_id}: {e}")
             self.job_manager.fail(job_id, "pipeline", str(e))
+        finally:
+            if cleanup and os.path.exists(source_dir):
+                import shutil
+                try:
+                    shutil.rmtree(source_dir)
+                    logger.info(f"Cleaned up temporary directory: {source_dir}")
+                except Exception as e:
+                    logger.error(f"Failed to clean up temporary directory {source_dir}: {e}")

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getFloorPlans, getLocations, uploadFloorPlan, createLocation, deleteFloorPlan } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSiteContext } from '../context/SiteContext';
+import PathVideoPlayer from '../components/PathVideoPlayer';
 
 const FloorPlansPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -14,6 +15,7 @@ const FloorPlansPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedVideoPin, setSelectedVideoPin] = useState<{pin: any, plan: any} | null>(null);
   
   const [isAddingPin, setIsAddingPin] = useState(false);
   const [pins, setPins] = useState<any[]>([]);
@@ -265,15 +267,30 @@ const FloorPlansPage: React.FC = () => {
                   <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white rounded-xl p-3 shadow-xl border border-gray-100 z-20 pointer-events-none group-hover:pointer-events-auto min-w-[150px]">
                     <div className="text-sm font-bold text-gray-900 mb-1 text-center">{pin.label}</div>
                     <div className="w-full bg-gray-100 h-px mb-2"></div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/captures?location_id=${pin.id}`);
-                      }}
-                      className="w-full bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold py-2 rounded-lg flex justify-center items-center transition-colors"
-                    >
-                      <Camera className="w-3 h-3 mr-1.5" /> View Captures
-                    </button>
+                    {pin.label.toLowerCase().includes('path') || pin.label.toLowerCase().includes('video') ? (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedVideoPin({
+                            pin,
+                            plan: selectedPlan
+                          });
+                        }}
+                        className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 rounded-lg flex justify-center items-center transition-colors"
+                      >
+                        <Camera className="w-3 h-3 mr-1.5" /> Play Path Video
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/captures?location_id=${pin.id}`);
+                        }}
+                        className="w-full bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold py-2 rounded-lg flex justify-center items-center transition-colors"
+                      >
+                        <Camera className="w-3 h-3 mr-1.5" /> View Captures
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -483,6 +500,43 @@ const FloorPlansPage: React.FC = () => {
               Debug: file={uploadFile ? uploadFile.name : 'none'} 
               | label={uploadLabel || 'empty'}
             </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Video Path Player Modal */}
+      {selectedVideoPin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm p-4 md:p-8">
+          <div className="bg-gray-900 rounded-2xl w-full max-w-6xl max-h-full flex flex-col shadow-2xl relative overflow-hidden border border-gray-700 animate-fade-in">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur z-10">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <Camera className="w-5 h-5 mr-3 text-brand-500" />
+                Path Walkthrough: {selectedVideoPin.pin.label}
+              </h3>
+              <button 
+                onClick={() => setSelectedVideoPin(null)} 
+                className="text-gray-400 hover:text-white transition-colors bg-gray-800 hover:bg-gray-700 p-2 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Player */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-950">
+              <PathVideoPlayer 
+                videoUrl="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+                floorPlanUrl={selectedVideoPin.plan.image_url}
+                pathPoints={[
+                  { id: '1', label: 'Start Point', timestamp_seconds: 0, x: selectedVideoPin.pin.pin_x / 100, y: selectedVideoPin.pin.pin_y / 100 },
+                  { id: '2', label: 'Hallway', timestamp_seconds: 5, x: Math.min((selectedVideoPin.pin.pin_x + 10) / 100, 1), y: selectedVideoPin.pin.pin_y / 100 },
+                  { id: '3', label: 'Corner Turn', timestamp_seconds: 10, x: Math.min((selectedVideoPin.pin.pin_x + 10) / 100, 1), y: Math.min((selectedVideoPin.pin.pin_y + 10) / 100, 1) },
+                  { id: '4', label: 'End Room', timestamp_seconds: 14, x: Math.min((selectedVideoPin.pin.pin_x + 20) / 100, 1), y: Math.min((selectedVideoPin.pin.pin_y + 15) / 100, 1) },
+                ]}
+              />
+            </div>
+            
           </div>
         </div>
       )}

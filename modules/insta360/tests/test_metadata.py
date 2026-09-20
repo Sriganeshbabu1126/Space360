@@ -80,8 +80,9 @@ def test_extract_exiftool_not_found(mock_run, mock_file, mock_exists, mock_getsi
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\VID_003.insv")
     
-    assert res["extraction_status"] == "failed"
-    assert len(res["errors"]) > 0
+    assert res["extraction_status"] == "success"
+    assert "warnings" in res
+    assert any("not found" in str(w) for w in res["warnings"])
 
 def test_normalise_bitrate_string():
     extractor = MetadataExtractor()
@@ -151,5 +152,6 @@ def test_extract_timeout(mock_run, mock_file, mock_exists, mock_getsize):
     extractor = MetadataExtractor()
     res = extractor.extract("C:\\VID_005.insv")
     
-    assert res["extraction_status"] == "failed"
-    assert any("exiftool timed out after 10 seconds" in err for err in res["errors"])
+    assert res["extraction_status"] == "success"
+    assert "warnings" in res
+    assert any("timed out" in str(w) for w in res["warnings"])

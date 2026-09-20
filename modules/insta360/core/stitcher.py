@@ -142,7 +142,10 @@ class VideoStitcher:
         cmd = [
             ffmpeg_path, "-y",
             "-i", src,
-            "-vcodec", codec_info["codec"],
+            "-vcodec", "libx264",
+            "-preset", "fast",
+            "-crf", "23",
+            "-vf", "scale=3840:1920",
             "-acodec", "copy",
             dst
         ]

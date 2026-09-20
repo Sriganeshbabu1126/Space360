@@ -10,9 +10,10 @@ declare global {
 interface PannellumViewerProps {
   url: string;
   isVideo?: boolean;
+  onVideoCreate?: (video: HTMLVideoElement) => void;
 }
 
-const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true }) => {
+const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, onVideoCreate }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const pannellumInstance = useRef<any>(null);
   const videoId = 'pannellum-video-' + Math.random().toString(36).substr(2, 9);
@@ -43,6 +44,10 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true }
           videoElement.loop = true;
           videoElement.play().catch(e => console.error("Autoplay prevented:", e));
           
+          if (onVideoCreate) {
+            onVideoCreate(videoElement);
+          }
+
           finalPanorama = videoElement as any;
           config.dynamic = true; // This is the correct parameter instead of video: true
         }
