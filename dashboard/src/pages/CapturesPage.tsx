@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Viewer360 from '../components/Viewer360';
 import CreateIssueModal from '../components/CreateIssueModal';
+import CaptureUpload from '../components/CaptureUpload';
 import FrameTimelineViewer from '../components/FrameTimelineViewer';
 import { useSiteContext } from '../context/SiteContext';
 
@@ -25,28 +26,7 @@ const CapturesPage: React.FC = () => {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [highlightedCapture, setHighlightedCapture] = useState<string | null>(null);
   const [selectedFrameForIssue, setSelectedFrameForIssue] = useState<any>(null);
-
-  // Modal states
-  const [floorPlans, setFloorPlans] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
   
-  const [modalSiteId, setModalSiteId] = useState('');
-  const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [selectedLocationId, setSelectedLocationId] = useState('');
-  
-  const [file, setFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState('');
-  const [capturedAt, setCapturedAt] = useState(() => new Date().toISOString().split('T')[0]);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Video specific state
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const videoFileInputRef = useRef<HTMLInputElement>(null);
-  const [videoUploading, setVideoUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedJobId, setUploadedJobId] = useState<string | null>(null);
-
   const fetchCaptures = async () => {
     if (!selectedSiteId) return;
     setLoading(true);
@@ -98,115 +78,8 @@ const CapturesPage: React.FC = () => {
 
   const handleOpenModal = () => {
     setShowModal(true);
-    if (sites.length > 0 && !modalSiteId) {
-      setModalSiteId(sites[0].id);
-    }
   };
 
-  useEffect(() => {
-    if (!modalSiteId) {
-      setFloorPlans([]);
-      setSelectedPlanId('');
-      return;
-    }
-    getFloorPlans(modalSiteId).then(res => {
-      setFloorPlans(res.data);
-      if (res.data.length > 0) setSelectedPlanId(res.data[0].id);
-      else setSelectedPlanId('');
-    }).catch(console.error);
-  }, [modalSiteId]);
-
-  useEffect(() => {
-    if (!selectedPlanId) {
-      setLocations([]);
-      setSelectedLocationId('');
-      return;
-    }
-    getLocations(selectedPlanId).then(res => {
-      setLocations(res.data);
-      if (res.data.length > 0) setSelectedLocationId(res.data[0].id);
-      else setSelectedLocationId('');
-    }).catch(console.error);
-  }, [selectedPlanId]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const f = e.target.files[0];
-      const isImage = f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg') || f.name.toLowerCase().endsWith('.png');
-      const isVideo = f.type.startsWith('video/') || f.name.toLowerCase().endsWith('.mp4') || f.name.toLowerCase().endsWith('.mov') || f.name.toLowerCase().endsWith('.webm');
-      if (!isImage && !isVideo) {
-        toast.error('Only JPG, PNG images and MP4, MOV videos are allowed.');
-        return;
-      }
-      setFile(f);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedLocationId || !file) {
-      toast.error('Please select a location and choose a file');
-      return;
-    }
-    setUploading(true);
-    try {
-      await uploadSession(selectedLocationId, file, notes, capturedAt);
-      toast.success('Capture uploaded!');
-      setShowModal(false);
-      setFile(null);
-      setNotes('');
-      setCapturedAt(new Date().toISOString().split('T')[0]);
-      fetchCaptures();
-    } catch (err) {
-      console.error(err);
-      toast.error('Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const f = e.target.files[0];
-      const isVideo = f.name.toLowerCase().endsWith('.insv') || f.name.toLowerCase().endsWith('.mp4');
-      if (!isVideo) {
-        toast.error('Only .insv and .mp4 video files are allowed.');
-        return;
-      }
-      setVideoFile(f);
-      setUploadedJobId(null);
-      setUploadProgress(0);
-    }
-  };
-
-  const handleVideoUpload = async () => {
-    if (!modalSiteId || !videoFile) {
-      toast.error('Please select a site and choose a video file');
-      return;
-    }
-    setVideoUploading(true);
-    setUploadProgress(0);
-    try {
-      const res = await uploadVideoIngest(modalSiteId, videoFile, (progressEvent) => {
-        if (progressEvent.total) {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        }
-      });
-      
-      if (res.data && res.data.job_id) {
-        setUploadedJobId(res.data.job_id);
-        toast.success('Video uploaded successfully!');
-        setVideoFile(null);
-      } else {
-        throw new Error('Upload failed: No job ID returned');
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.response?.data?.detail || 'Video upload failed');
-    } finally {
-      setVideoUploading(false);
-    }
-  };
 
   const [selectedSequenceData, setSelectedSequenceData] = useState<any>(null);
 
@@ -354,125 +227,13 @@ const CapturesPage: React.FC = () => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                <Upload className="w-5 h-5 mr-2 text-brand-600" /> Upload Capture
-              </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Site</label>
-                <select className="input w-full" value={modalSiteId} onChange={e => setModalSiteId(e.target.value)}>
-                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Floor Plan</label>
-                <select className="input w-full" value={selectedPlanId} onChange={e => setSelectedPlanId(e.target.value)} disabled={floorPlans.length === 0}>
-                  {floorPlans.length === 0 ? <option>No plans available</option> : floorPlans.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location Pin</label>
-                <select className="input w-full" value={selectedLocationId} onChange={e => setSelectedLocationId(e.target.value)} disabled={locations.length === 0}>
-                  {locations.length === 0 ? <option>No locations available</option> : locations.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">360° Image (JPG/PNG)</label>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".png,.jpg,.jpeg" className="hidden" />
-                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-colors">
-                  {file ? (
-                    <div>
-                      <p className="font-bold text-brand-600 text-sm truncate">{file.name}</p>
-                      <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
-                  ) : (
-                    <div className="text-gray-500">
-                      <Camera className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                      <p className="text-sm">Click to browse files</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Capture Date</label>
-                <input type="date" className="input w-full" value={capturedAt} onChange={e => setCapturedAt(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                <textarea className="input w-full text-sm" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add any capture notes..."></textarea>
-              </div>
-            </div>
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h4 className="text-lg font-bold text-gray-900 mb-4">360° Video (INSV/MP4)</h4>
-              <div>
-                <input type="file" ref={videoFileInputRef} onChange={handleVideoFileChange} accept=".insv,.mp4,video/mp4" className="hidden" />
-                <div onClick={() => videoFileInputRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-colors mb-4">
-                  {videoFile ? (
-                    <div>
-                      <p className="font-bold text-brand-600 text-sm truncate">{videoFile.name}</p>
-                      <p className="text-xs text-gray-500">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
-                  ) : (
-                    <div className="text-gray-500">
-                      <Upload className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                      <p className="text-sm">Click to browse video files</p>
-                    </div>
-                  )}
-                </div>
-                
-                {videoUploading && (
-                  <div className="mb-4">
-                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                    </div>
-                    <p className="text-xs text-gray-500 text-center mt-1">Uploading... {uploadProgress}%</p>
-                  </div>
-                )}
-                
-                {uploadedJobId && (
-                  <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col items-center">
-                    <p className="font-bold text-lg mb-1">✅ Video uploaded!</p>
-                    <p className="mb-3">Job ID: {uploadedJobId}</p>
-                    <a href={`/videos/${uploadedJobId}/status`} className="text-brand-600 hover:text-brand-800 underline font-semibold mb-4 text-center block">Track progress</a>
-                    
-                    <button 
-                      onClick={() => {
-                        setUploadedJobId(null);
-                        setVideoFile(null);
-                        setShowModal(false);
-                        fetchCaptures();
-                      }}
-                      className="btn-primary px-8 py-2 font-bold w-full max-w-xs mx-auto"
-                    >
-                      Done
-                    </button>
-                  </div>
-                )}
-                
-                {!uploadedJobId && (
-                  <button onClick={handleVideoUpload} disabled={videoUploading || !videoFile || !modalSiteId} className="w-full btn-primary px-6 py-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                    {videoUploading ? 'Uploading Video...' : 'Upload Video'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={handleUpload} disabled={uploading || !selectedLocationId || !file} className="btn-primary px-6 py-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                {uploading ? 'Uploading Image...' : 'Upload Image'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CaptureUpload 
+          onClose={() => setShowModal(false)}
+          onUploadComplete={() => {
+            setShowModal(false);
+            fetchCaptures();
+          }}
+        />
       )}
 
       {viewerUrl && (

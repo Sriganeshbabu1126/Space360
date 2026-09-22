@@ -163,12 +163,14 @@ export const getExportJobStatus = async (jobId: string) => {
 // --- Videos ---
 export const uploadVideoIngest = (
   siteId: string, 
+  pinId: string,
   file: File, 
   onUploadProgress?: (progressEvent: any) => void
 ) => {
   const form = new FormData();
   form.append("file", file);
   form.append("site_id", siteId);
+  form.append("pin_id", pinId);
   return api.post(`/api/videos/ingest`, form, {
     onUploadProgress
   });

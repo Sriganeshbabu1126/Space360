@@ -125,3 +125,22 @@ def delete_site(site_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Site not found")
     db.delete(site)
     db.commit()
+
+@router.get("/{site_id}/inspection-points")
+def list_site_inspection_points(site_id: str, db: Session = Depends(get_db)):
+    # Join LocationPoint with FloorPlan to filter by site_id
+    points = db.query(LocationPoint)\
+               .join(FloorPlan, LocationPoint.floor_plan_id == FloorPlan.id)\
+               .filter(FloorPlan.site_id == site_id)\
+               .all()
+    
+    return [
+        {
+            "id": p.id,
+            "label": p.label,
+            "x_coord": p.x_coord,
+            "y_coord": p.y_coord,
+            "floor_plan_id": p.floor_plan_id
+        }
+        for p in points
+    ]
