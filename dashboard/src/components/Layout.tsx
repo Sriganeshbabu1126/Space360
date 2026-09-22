@@ -22,6 +22,8 @@ import {
 import { useSite } from '../context/SiteContext';
 import { useNavigate } from 'react-router-dom';
 
+import ProjectHeader from './ProjectHeader';
+
 const SiteSelector = () => {
   const { sites, selectedSiteId, setSelectedSiteId, loading } = useSite();
   const navigate = useNavigate();
@@ -177,28 +179,19 @@ const Layout: React.FC = () => {
             </button>
             <div className="flex flex-col ml-2">
               <span className="font-bold text-lg text-brand-900 leading-tight">Space360</span>
-              {currentNavItem.path !== '/sites' && selectedSiteId && sites.find(s => s.id === selectedSiteId) && (
-                <span className="text-[10px] font-medium text-brand-600 leading-tight truncate max-w-[150px]">
-                  {sites.find(s => s.id === selectedSiteId)?.name}
-                </span>
-              )}
             </div>
           </div>
           
           <div className="hidden md:flex items-center gap-4">
             <h1 className="text-xl font-semibold text-gray-800">{currentNavItem.name}</h1>
-            {currentNavItem.path !== '/sites' && selectedSiteId && sites.find(s => s.id === selectedSiteId) && (
-              <div className="px-3 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-full text-sm font-medium flex items-center">
-                <Building2 className="w-4 h-4 mr-1.5 opacity-70" />
-                Current Project: {sites.find(s => s.id === selectedSiteId)?.name}
-              </div>
-            )}
           </div>
           
           <div className="flex items-center gap-4">
             {/* SiteSelector has been moved to SitesPage */}
           </div>
         </header>
+        
+        <ProjectHeader />
         
         {/* Main scrollable area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
