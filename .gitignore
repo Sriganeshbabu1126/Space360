@@ -18,3 +18,8 @@ app/google-services.json
 ".git_corrupted/" 
 "mobile/android/app/google-services.json" 
 .git_corrupted/
+
+/tests/
+node_modules/
+*.log
+.env
