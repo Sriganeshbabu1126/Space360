@@ -138,8 +138,8 @@ def list_site_inspection_points(site_id: str, db: Session = Depends(get_db)):
         {
             "id": p.id,
             "label": p.label,
-            "x_coord": p.x_coord,
-            "y_coord": p.y_coord,
+            "x": p.pin_x,
+            "y": p.pin_y,
             "floor_plan_id": p.floor_plan_id
         }
         for p in points
