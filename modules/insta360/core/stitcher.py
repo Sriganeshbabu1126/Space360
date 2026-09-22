@@ -84,45 +84,10 @@ class VideoStitcher:
         return results
 
     def _detect_codec(self, file_size_bytes: int) -> dict:
-        ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
-        debug_log = os.getenv("STITCHER_DEBUG_LOG", "/tmp/stitcher_debug.log")
-        
-        # Large files (>200MB) -> use fast libx264
-        if file_size_bytes > 200 * 1024 * 1024:
-            with open(debug_log, "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.now().isoformat()}] Large file ({file_size_bytes} bytes): using libx264 for speed\n")
-            return {
-                "codec": "libx264",
-                "method": "software",
-                "reason": "Large file (>200MB): using H.264 for speed"
-            }
-        
-        codecs_to_try = ["libx265", "libx264"]
-        
-        for codec in codecs_to_try:
-            try:
-                result = subprocess.run(
-                    [ffmpeg_path, "-h", "encoder=" + codec],
-                    capture_output=True,
-                    timeout=5
-                )
-                if result.returncode == 0:
-                    method = "nvenc" if "nvenc" in codec else "software"
-                    with open(debug_log, "a", encoding="utf-8") as f:
-                        f.write(f"[{datetime.now().isoformat()}] Selected codec: {codec} ({method})\n")
-                    return {
-                        "codec": codec,
-                        "method": method,
-                        "reason": f"{codec} available"
-                    }
-            except:
-                continue
-        
-        # Fallback to libx264
         return {
             "codec": "libx264",
             "method": "software",
-            "reason": "Fallback to H.264 software encoder"
+            "reason": "Space360 default standard: 4K H.264"
         }
 
     def _get_duration(self, filepath: str) -> float:
