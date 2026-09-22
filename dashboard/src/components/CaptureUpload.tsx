@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Camera, X, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSiteContext } from '../context/SiteContext';
-import { uploadSession, uploadVideoIngest } from '../services/api';
-import axios from 'axios';
+import { uploadSession, uploadVideoIngest, getSiteInspectionPoints } from '../services/api';
 
 interface CaptureUploadProps {
   onClose: () => void;
@@ -35,7 +34,7 @@ const CaptureUpload: React.FC<CaptureUploadProps> = ({ onClose, onUploadComplete
         setLoadingPins(true);
         try {
           // Fetch inspection points for the selected site
-          const res = await axios.get(`/api/sites/${selectedSiteId}/inspection-points`);
+          const res = await getSiteInspectionPoints(selectedSiteId);
           setPins(res.data);
           if (res.data.length > 0) {
             setSelectedPinId(res.data[0].id);

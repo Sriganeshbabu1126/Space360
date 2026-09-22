@@ -38,6 +38,8 @@ export const createSite = (data: object) =>
   api.post("/sites/", data);
 export const getSite = (id: string) => 
   api.get(`/sites/${id}`);
+export const getSiteInspectionPoints = (siteId: string) => 
+  api.get(`/sites/${siteId}/inspection-points`);
 
 // --- Floor Plans ---
 export const getAllFloorPlans = () => api.get("/floor-plans/");
