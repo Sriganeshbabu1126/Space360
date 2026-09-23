@@ -75,7 +75,7 @@ const issueTypeLabels: Record<string, string> = {
 const IssuesPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
-  const { selectedSiteId } = useSiteContext(); 
+  const { selectedSiteId, selectedFloorPlanId } = useSiteContext(); 
   
   const [issues, setIssues] = useState<Issue[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -88,6 +88,7 @@ const IssuesPage: React.FC = () => {
     statuses: [],
     types: [],
     sites: selectedSiteId ? [selectedSiteId] : [],
+    floor_plans: selectedFloorPlanId ? [selectedFloorPlanId] : [],
     contractors: [],
     date_start: '',
     date_end: ''
@@ -136,12 +137,12 @@ const IssuesPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedSiteId) {
-       setActiveFilters((prev: any) => ({ ...prev, sites: [selectedSiteId] }));
-    } else {
-       setActiveFilters((prev: any) => ({ ...prev, sites: [] }));
-    }
-  }, [selectedSiteId]);
+    setActiveFilters((prev: any) => ({
+      ...prev,
+      sites: selectedSiteId ? [selectedSiteId] : [],
+      floor_plans: selectedFloorPlanId ? [selectedFloorPlanId] : []
+    }));
+  }, [selectedSiteId, selectedFloorPlanId]);
 
   useEffect(() => {
     if (selectedSiteId) {

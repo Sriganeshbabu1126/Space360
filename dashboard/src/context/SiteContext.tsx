@@ -2,33 +2,46 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getSites, getContractors } from '../services/api';
 import { useAuth } from './AuthContext';
 
-interface Site {
+export interface Site {
   id: string;
   name: string;
   address?: string;
   status?: string;
+  tenant_id?: string;
+}
+
+export interface FloorPlan {
+  id: string;
+  name: string;
+  site_id: string;
 }
 
 interface SiteContextType {
   sites: Site[];
   selectedSiteId: string | null;
   setSelectedSiteId: (id: string | null) => void;
+  selectedFloorPlanId: string | null;
+  setSelectedFloorPlanId: (id: string | null) => void;
+  tenantId: string | null;
   loading: boolean;
 }
 
 const SiteContext = createContext<SiteContextType>({} as SiteContextType);
 
-// Using useSiteContext as per instructions, but keeping useSite as alias in case other places aren't updated yet.
+// Keeping useSite alias
 export const useSiteContext = () => useContext(SiteContext);
 export const useSite = () => useContext(SiteContext);
 
 export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAdmin } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(() => {
-    return localStorage.getItem('selectedSiteId');
-  });
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(() => localStorage.getItem('selectedSiteId'));
+  const [selectedFloorPlanId, setSelectedFloorPlanId] = useState<string | null>(() => localStorage.getItem('selectedFloorPlanId'));
   const [loading, setLoading] = useState(true);
+
+  // Determine tenantId based on current selected site, if available
+  const currentSite = sites.find(s => s.id === selectedSiteId);
+  const tenantId = currentSite?.tenant_id || null;
 
   useEffect(() => {
     if (selectedSiteId) {
@@ -39,10 +52,24 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [selectedSiteId]);
 
   useEffect(() => {
+    if (selectedFloorPlanId) {
+      localStorage.setItem('selectedFloorPlanId', selectedFloorPlanId);
+    } else {
+      localStorage.removeItem('selectedFloorPlanId');
+    }
+  }, [selectedFloorPlanId]);
+
+  // If site changes, clear floor plan to ensure we don't carry over an old context
+  useEffect(() => {
+    setSelectedFloorPlanId(null);
+  }, [selectedSiteId]);
+
+  useEffect(() => {
     const fetchSites = async () => {
       if (!user) {
         setSites([]);
         setSelectedSiteId(null);
+        setSelectedFloorPlanId(null);
         return;
       }
       
@@ -51,19 +78,12 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isAdmin) {
           const res = await getSites();
           setSites(res.data);
-          // If no site is selected, or selected site is not in the list (though this check can be improved later)
-          if (res.data.length > 0 && !selectedSiteId) {
-            setSelectedSiteId(res.data[0].id);
-          }
         } else {
           // Contractor: fetch their profile
           const res = await getContractors();
           const me = res.data.find((c: any) => c.contact === user.email);
           if (me && me.sites) {
             setSites(me.sites);
-            if (me.sites.length > 0 && !selectedSiteId) {
-              setSelectedSiteId(me.sites[0].id);
-            }
           } else {
             setSites([]);
           }
@@ -82,6 +102,9 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sites,
     selectedSiteId,
     setSelectedSiteId,
+    selectedFloorPlanId,
+    setSelectedFloorPlanId,
+    tenantId,
     loading
   };
 

@@ -71,7 +71,7 @@ const HomePage: React.FC = () => {
 
   const handleProjectClick = (project: Project) => {
     setSelectedSiteId(project.id);
-    navigate(`/projects/${project.id}`);
+    navigate(`/projects/${project.id}/captures`);
   };
 
   return (

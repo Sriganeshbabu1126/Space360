@@ -108,6 +108,12 @@ export const createContractor = (data: any) => api.post('/contractors/', data);
 export const updateContractor = (id: string, data: any) => api.put(`/contractors/${id}`, data);
 export const deleteContractor = (id: string) => api.delete(`/contractors/${id}`);
 
+// --- Project Members (Multi-Tenant) ---
+export const getCompanyUsers = (companyId: string) => api.get(`/companies/${companyId}/users`);
+export const getProjectMembers = (projectId: string) => api.get(`/projects/${projectId}/members`);
+export const addProjectMember = (projectId: string, data: any) => api.post(`/projects/${projectId}/members`, data);
+export const removeProjectMember = (projectId: string, userId: string) => api.delete(`/projects/${projectId}/members/${userId}`);
+
 // --- Issues ---
 export const getIssues = (status?: string, locationId?: string, siteId?: string) => {
   const params = new URLSearchParams();
@@ -122,6 +128,7 @@ export const searchIssues = (params: any) => {
   if (params.statuses?.length) qs.append('statuses', params.statuses.join(','));
   if (params.types?.length) qs.append('types', params.types.join(','));
   if (params.sites?.length) qs.append('sites', params.sites.join(','));
+  if (params.floor_plans?.length) qs.append('floor_plans', params.floor_plans.join(','));
   if (params.contractors?.length) qs.append('contractors', params.contractors.join(','));
   if (params.date_start) qs.append('date_start', params.date_start);
   if (params.date_end) qs.append('date_end', params.date_end);

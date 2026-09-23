@@ -1,87 +1,39 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Building2, 
-  Map, 
-  Camera, 
-  GitCompare, 
-  Sparkles, 
-  FileBarChart,
-  LogOut,
-  User as UserIcon,
-  Users,
-  AlertCircle,
-  Menu,
-  X,
-  ChevronDown,
-  Video,
-  Upload
-} from 'lucide-react';
 import { useSite } from '../context/SiteContext';
-import { useNavigate } from 'react-router-dom';
-
+import { 
+  Menu, LogOut, Camera, AlertCircle, Users, LayoutDashboard, User as UserIcon, Settings, ArrowLeft
+} from 'lucide-react';
 import ProjectHeader from './ProjectHeader';
-
-const SiteSelector = () => {
-  const { sites, selectedSiteId, setSelectedSiteId, loading } = useSite();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  if (loading || sites.length === 0) return null;
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSiteId = e.target.value;
-    setSelectedSiteId(newSiteId);
-    
-    if (location.pathname.startsWith('/projects/')) {
-      navigate(`/projects/${newSiteId}`);
-    }
-  };
-
-  return (
-    <div className="relative group">
-      <select 
-        value={selectedSiteId || ''} 
-        onChange={handleChange}
-        className="appearance-none bg-brand-50 border border-brand-200 text-brand-800 text-sm font-medium rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shadow-sm transition-shadow"
-      >
-        <option value="" disabled>Select Site...</option>
-        {sites.map(site => (
-          <option key={site.id} value={site.id}>{site.name}</option>
-        ))}
-      </select>
-      <ChevronDown className="w-4 h-4 text-brand-600 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-    </div>
-  );
-};
-
-const navItems = [
-  { name: 'Home', path: '/', icon: LayoutDashboard },
-  { name: 'Sites / Projects', path: '/sites', icon: Building2 },
-  { name: 'Floor Plans', path: '/floor-plans', icon: Map },
-  { name: 'Captures', path: '/captures', icon: Camera },
-  { name: 'Videos', path: '/videos', icon: Video },
-  { name: 'Upload Video', path: '/videos/upload', icon: Upload },
-  { name: 'Issues', path: '/issues', icon: AlertCircle },
-  { name: 'AI Features', path: '/ai', icon: Sparkles },
-  { name: 'Reports', path: '/reports', icon: FileBarChart },
-  { name: 'Project Members', path: '/members', icon: Users },
-];
 
 const Layout: React.FC = () => {
   const { user, isAdmin, signOut } = useAuth();
   const { selectedSiteId, sites } = useSite();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const currentNavItem = navItems.find(item => item.path === location.pathname) || { name: 'Dashboard', path: '' };
+  // If we are in a project route (or have selectedSiteId active while not on home)
+  // Actually, let's rely on the URL path to determine sidebar mode.
+  const isProjectView = location.pathname.startsWith('/projects/') && selectedSiteId;
+  const currentSite = sites.find(s => s.id === selectedSiteId);
 
-  const displayedNavItems = navItems.filter(item => {
-    if (item.name === 'Project Members' && !isAdmin) return false;
-    return true;
-  });
+  const globalNavItems = [
+    { name: 'Projects Hub', path: '/', icon: LayoutDashboard },
+    // { name: 'Settings', path: '/settings', icon: Settings },
+  ];
+
+  const projectNavItems = [
+    { name: 'Captures', path: `/projects/${selectedSiteId}/captures`, icon: Camera },
+    { name: 'Issues', path: `/projects/${selectedSiteId}/issues`, icon: AlertCircle },
+  ];
+
+  if (isAdmin) {
+    projectNavItems.push({ name: 'Members', path: `/projects/${selectedSiteId}/members`, icon: Users });
+  }
+
+  const displayedNavItems = isProjectView ? projectNavItems : globalNavItems;
 
   const SidebarContent = () => (
     <>
@@ -90,16 +42,28 @@ const Layout: React.FC = () => {
         <span className="font-bold text-lg tracking-wide">Space360</span>
       </div>
       
-      <nav className="flex-1 py-4 space-y-1 overflow-y-auto px-3">
+      {isProjectView && currentSite && (
+        <div className="px-4 py-4 border-b border-brand-800/50 bg-brand-950">
+          <button onClick={() => navigate('/')} className="text-brand-300 hover:text-white flex items-center text-xs font-semibold mb-2 transition-colors">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Change Project
+          </button>
+          <div className="font-bold text-white text-sm line-clamp-2 leading-snug">
+            {currentSite.name}
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 py-4 space-y-1 overflow-y-auto px-3 custom-scrollbar">
         {displayedNavItems.map((item) => (
           <NavLink
             key={item.name}
             to={item.path}
             onClick={() => setIsMobileMenuOpen(false)}
+            end={item.path === '/'}
             className={({ isActive }) =>
               `flex items-center px-3 py-3 md:py-2.5 text-sm font-medium rounded-lg transition-colors min-h-[44px] ${
                 isActive 
-                  ? 'bg-brand-800 text-white' 
+                  ? 'bg-brand-800 text-white shadow-sm' 
                   : 'text-brand-100 hover:bg-brand-800 hover:text-white'
               }`
             }
@@ -114,14 +78,14 @@ const Layout: React.FC = () => {
       <div className="p-4 border-t border-brand-800 shrink-0">
         <div className="flex items-center mb-4 px-2">
           {user?.photoURL ? (
-            <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full mr-3 border border-brand-700" />
+            <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full mr-3 border border-brand-700 object-cover" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center mr-3 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center mr-3 shrink-0 shadow-inner">
               <UserIcon className="w-4 h-4 text-brand-100" />
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{user?.displayName}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.displayName || 'User'}</p>
             <p className="text-xs text-brand-300 truncate">{user?.email}</p>
           </div>
         </div>
@@ -130,14 +94,11 @@ const Layout: React.FC = () => {
             setIsMobileMenuOpen(false);
             signOut();
           }}
-          className="w-full flex items-center justify-center px-4 py-3 md:py-2 text-sm text-brand-100 hover:text-white hover:bg-brand-800 rounded-lg transition-colors mb-2 min-h-[44px]"
+          className="w-full flex items-center justify-center px-4 py-3 md:py-2 text-sm text-brand-100 hover:text-white hover:bg-brand-800 rounded-lg transition-colors min-h-[44px]"
         >
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </button>
-        <div className="text-center text-xs text-brand-400 mt-4 border-t border-brand-800 pt-4">
-          SGB Dev Apps
-        </div>
       </div>
     </>
   );
@@ -145,21 +106,21 @@ const Layout: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 bg-brand-900 text-white flex-col shrink-0">
+      <div className="hidden md:flex w-64 bg-brand-900 text-white flex-col shrink-0 shadow-xl z-20">
         <SidebarContent />
       </div>
 
       {/* Mobile drawer backdrop */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity"
+          className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Mobile Sidebar */}
       <div 
-        className={`fixed inset-y-0 left-0 w-64 bg-brand-900 text-white flex flex-col z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 w-64 bg-brand-900 text-white flex flex-col z-50 transform transition-transform duration-300 ease-in-out md:hidden shadow-2xl ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -168,33 +129,22 @@ const Layout: React.FC = () => {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col w-full h-full overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between md:justify-between px-4 md:px-8 z-10 shrink-0">
-          <div className="flex items-center md:hidden">
-            <button 
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 -ml-2 text-gray-600 hover:text-gray-900 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <div className="flex flex-col ml-2">
-              <span className="font-bold text-lg text-brand-900 leading-tight">Space360</span>
-            </div>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-gray-800">{currentNavItem.name}</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* SiteSelector has been moved to SitesPage */}
-          </div>
+        {/* Mobile Header */}
+        <header className="h-14 md:hidden bg-white shadow-sm border-b border-gray-200 flex items-center px-4 z-10 shrink-0">
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 -ml-2 text-gray-600 hover:text-gray-900 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <div className="ml-2 font-bold text-lg text-brand-900 leading-tight">Space360</div>
         </header>
         
-        <ProjectHeader />
+        {/* Optional old ProjectHeader if you want it (though ProjectDashboard handles context header now) */}
+        {!isProjectView && <ProjectHeader />}
         
         {/* Main scrollable area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
