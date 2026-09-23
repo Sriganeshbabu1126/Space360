@@ -35,7 +35,7 @@ const HomePage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [search, setSearch] = useState('');
   
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { setSelectedSiteId } = useSiteContext();
   const navigate = useNavigate();
 
@@ -74,47 +74,103 @@ const HomePage: React.FC = () => {
     navigate(`/projects/${project.id}/captures`);
   };
 
+  // Calculate global stats
+  const globalStats = useMemo(() => {
+    return projects.reduce((acc, p) => ({
+      total_active: acc.total_active + (p.status === 'active' ? 1 : 0),
+      total_issues: acc.total_issues + p.stats.open_issues,
+      total_captures: acc.total_captures + p.stats.total_captures
+    }), { total_active: 0, total_issues: 0, total_captures: 0 });
+  }, [projects]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Project Hub</h1>
-          <p className="text-gray-500 mt-1">Manage your sites, floor plans, and issues all in one place.</p>
+      {/* Header with Greeting */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-gradient-to-r from-brand-900 to-brand-700 p-8 rounded-3xl text-white shadow-lg overflow-hidden relative">
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 opacity-10">
+          <Building2 className="w-64 h-64" />
+        </div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
+            {greeting}, {user?.email?.split('@')[0] || 'User'}!
+          </h1>
+          <p className="text-brand-100 text-lg opacity-90 max-w-xl">
+            Here's what's happening across your construction sites today.
+          </p>
         </div>
         {isAdmin && (
-          <button onClick={() => navigate('/sites')} className="btn-primary flex items-center shadow-md">
+          <button onClick={() => navigate('/sites')} className="relative z-10 bg-white text-brand-900 hover:bg-brand-50 px-6 py-3 rounded-xl font-bold flex items-center transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5">
             <Plus className="w-5 h-5 mr-2" />
             New Project
           </button>
         )}
       </div>
 
+      {/* Global Stats Row */}
+      {!loading && projects.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-4">
+              <Building2 className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 font-medium">Active Projects</div>
+              <div className="text-3xl font-bold text-gray-900">{globalStats.total_active}</div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+            <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mr-4">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 font-medium">Global Open Issues</div>
+              <div className="text-3xl font-bold text-gray-900">{globalStats.total_issues}</div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+            <div className="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mr-4">
+              <Activity className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 font-medium">Total Captures</div>
+              <div className="text-3xl font-bold text-gray-900">{globalStats.total_captures}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex space-x-1 w-full sm:w-auto p-1 bg-gray-50 rounded-lg">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex space-x-1 w-full sm:w-auto p-1 bg-gray-200/50 rounded-xl">
           {(['all', 'active', 'archived'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 text-sm font-medium rounded-md capitalize transition-colors ${
+              className={`px-5 py-2.5 text-sm font-bold rounded-lg capitalize transition-all ${
                 filter === f 
-                  ? 'bg-white text-brand-700 shadow-sm border border-gray-200/60' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-white text-brand-700 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
             >
               {f}
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative w-full sm:w-96">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search projects..."
+            placeholder="Search projects by name or location..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-brand-500 transition-shadow"
+            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-shadow shadow-sm"
           />
         </div>
       </div>

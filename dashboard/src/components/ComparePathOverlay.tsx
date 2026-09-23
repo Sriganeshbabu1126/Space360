@@ -100,10 +100,8 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
     setIsDragging(false);
   };
 
-  if (!selectedPath || !floorPlanImage) return null;
-
   const currentPointIndex = useMemo(() => {
-    if (!selectedPath.points.length) return -1;
+    if (!selectedPath || !selectedPath.points.length) return -1;
     let idx = 0;
     let minDiff = Math.abs(currentVideoTime - selectedPath.points[0].timestamp);
     selectedPath.points.forEach((pt, i) => {
@@ -114,7 +112,9 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
       }
     });
     return idx;
-  }, [currentVideoTime, selectedPath]);
+  }, [selectedPath, currentVideoTime]);
+
+  if (!selectedPath || !floorPlanImage) return null;
 
   return (
     <div className="absolute bottom-4 left-4 w-64 h-64 bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl overflow-hidden z-30 flex flex-col group transition-all duration-300 hover:w-96 hover:h-96">
