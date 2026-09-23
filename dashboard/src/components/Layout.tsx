@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSite } from '../context/SiteContext';
 import { 
-  Menu, LogOut, Camera, AlertCircle, Users, LayoutDashboard, User as UserIcon, Settings, ArrowLeft
+  Menu, LogOut, Camera, AlertCircle, Users, LayoutDashboard, User as UserIcon, Settings, ArrowLeft, FileText, Bot, SplitSquareHorizontal
 } from 'lucide-react';
 import ProjectHeader from './ProjectHeader';
 
@@ -26,7 +26,10 @@ const Layout: React.FC = () => {
 
   const projectNavItems = [
     { name: 'Captures', path: `/projects/${selectedSiteId}/captures`, icon: Camera },
+    { name: 'Compare', path: `/projects/${selectedSiteId}/compare`, icon: SplitSquareHorizontal },
     { name: 'Issues', path: `/projects/${selectedSiteId}/issues`, icon: AlertCircle },
+    { name: 'Reports', path: `/projects/${selectedSiteId}/reports`, icon: FileText },
+    { name: 'AI Detect (Beta)', path: `/projects/${selectedSiteId}/ai-detect`, icon: Bot },
   ];
 
   if (isAdmin) {

@@ -88,11 +88,14 @@ def create_path(
 
 @router.get("/", response_model=List[PathResponse])
 def get_paths(
+    site_id: Optional[str] = None,
     floor_plan_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     query = db.query(InspectionPath)
+    if site_id:
+        query = query.filter(InspectionPath.site_id == site_id)
     if floor_plan_id:
         query = query.filter(InspectionPath.floor_plan_id == floor_plan_id)
     return query.all()

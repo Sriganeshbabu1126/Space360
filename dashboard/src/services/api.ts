@@ -45,6 +45,8 @@ export const getSiteInspectionPoints = (siteId: string) =>
 export const getAllFloorPlans = () => api.get("/floor-plans/");
 export const getFloorPlans = (siteId: string) =>
   api.get(`/floor-plans/site/${siteId}`);
+export const getFloorPlan = (floorPlanId: string) =>
+  api.get(`/floor-plans/${floorPlanId}`);
 export const uploadFloorPlan = (
   siteId: string, label: string, file: File) => {
   const form = new FormData();
@@ -62,6 +64,10 @@ export const getLocations = (floorPlanId: string) =>
 export const createLocation = (
   floorPlanId: string, data: object) =>
   api.post(`/locations/floor-plan/${floorPlanId}`, data);
+
+// --- Paths ---
+export const getPaths = (siteId: string) => api.get(`/paths/?site_id=${siteId}`);
+export const getPath = (pathId: string) => api.get(`/paths/${pathId}`);
 
 // --- Sessions ---
 export const getAllSessions = (siteId?: string) => 

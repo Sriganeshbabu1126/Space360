@@ -11,9 +11,9 @@ import CapturesPage from './pages/CapturesPage';
 import IssuesPage from './pages/IssuesPage';
 import ProjectMembersPage from './pages/ProjectMembersPage';
 import VideoJobStatusPage from './pages/VideoJobStatusPage';
-// Remaining imports for ai/reports if they are part of the app, but user didn't mention them. I'll keep them unrouted or comment them out if they break.
-// import AIFeaturesPage from './pages/AIFeaturesPage';
-// import ReportsPage from './pages/ReportsPage';
+import ComparePage from './pages/ComparePage';
+import AIDetectPage from './pages/AIDetectPage';
+import ReportGenerationPage from './pages/ReportGenerationPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -35,7 +35,10 @@ const AppRoutes = () => (
         <Route index element={<Navigate to="captures" replace />} />
         
         <Route path="captures" element={<CapturesPage />} />
+        <Route path="compare" element={<ComparePage />} />
         <Route path="issues" element={<IssuesPage />} />
+        <Route path="ai-detect" element={<AIDetectPage />} />
+        <Route path="reports" element={<ReportGenerationPage />} />
         <Route path="members" element={<ProjectMembersPage />} />
         <Route path="videos/:jobId/status" element={<VideoJobStatusPage />} />
       </Route>
