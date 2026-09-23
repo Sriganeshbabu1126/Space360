@@ -26,8 +26,9 @@ async def get_all_sessions(
 ):
     query = db.query(CaptureSession)
     if site_id:
-        query = query.join(LocationPoint).join(LocationPoint.floor_plan).filter(
-            LocationPoint.floor_plan.has(site_id=site_id)
+        from app.models import FloorPlan
+        query = query.join(LocationPoint).join(FloorPlan).filter(
+            FloorPlan.site_id == site_id
         )
     sessions = query.order_by(CaptureSession.captured_at.desc()).offset(offset).limit(limit).all()
     
@@ -58,9 +59,11 @@ async def get_all_sessions(
                     for i, uri in enumerate(gcs_uris):
                         frames.append({
                             "id": f"frame_{i}",
-                            "capture_session_id": job["job_id"],
+                            "session_id": job["job_id"],
+                            "frame_number": i,
                             "frame_url": uri,
-                            "timestamp_seconds": i * 0.5
+                            "timestamp_seconds": i * 0.5,
+                            "created_at": created_dt
                         })
                         
                     first_img = frames[0]["frame_url"] if frames else None

@@ -6,16 +6,13 @@ import json
 import logging
 import time
 import subprocess
+import tempfile
 import shutil
 from datetime import datetime
 
 logger = logging.getLogger("insta360.stitcher")
 
 class VideoStitcher:
-    """
-    Stitches .insv files to equirectangular MP4 using ffmpeg.
-    Probes system for hardware encoding (NVENC) with software fallback.
-    """
     def stitch(self, src_insv: str, out_dir: str) -> dict:
         result = {
             "src": src_insv,
@@ -87,7 +84,7 @@ class VideoStitcher:
         return {
             "codec": "libx264",
             "method": "software",
-            "reason": "Space360 default standard: 4K H.264"
+            "reason": "Space360 fast extraction"
         }
 
     def _get_duration(self, filepath: str) -> float:
@@ -99,60 +96,74 @@ class VideoStitcher:
             return None
 
     def _run_ffmpeg(self, src: str, dst: str, codec_info: dict) -> tuple[bool, str, float]:
-        """Run ffmpeg with timeout protection"""
         ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
         debug_log = os.getenv("STITCHER_DEBUG_LOG", "/tmp/stitcher_debug.log")
         
-        # Build command
         cmd = [
             ffmpeg_path, "-y",
             "-i", src,
             "-vcodec", "libx264",
-            "-preset", "fast",
-            "-crf", "23",
-            "-vf", "scale=3840:1920",
-            "-acodec", "copy",
+            "-preset", "ultrafast",
+            "-crf", "28",
+            "-vf", "fps=2,scale=1920:960",
+            "-an",
             dst
         ]
         
-        with open(debug_log, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.now().isoformat()}] Starting ffmpeg (timeout: 600s)\n")
-            f.write(f"  Command: {' '.join(cmd)}\n")
+        try:
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] Starting ffmpeg (timeout: 3600s)\n")
+                f.write(f"  Command: {' '.join(cmd)}\n")
+        except:
+            pass
         
         start_time = time.time()
         
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minute timeout
-            )
-            
+            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as err_file:
+                err_path = err_file.name
+                
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=err_file,
+                    timeout=3600
+                )
+                
             duration = time.time() - start_time
             
+            stderr_output = ""
+            if result.returncode != 0:
+                with open(err_path, 'r') as f:
+                    content = f.read()
+                    stderr_output = content[-500:] if len(content) > 500 else content
+                    
+            try:
+                os.remove(err_path)
+            except:
+                pass
+            
             if result.returncode == 0:
-                with open(debug_log, "a", encoding="utf-8") as f:
-                    f.write(f"[{datetime.now().isoformat()}] ffmpeg succeeded in {duration:.1f}s\n")
+                try:
+                    with open(debug_log, "a", encoding="utf-8") as f:
+                        f.write(f"[{datetime.now().isoformat()}] ffmpeg succeeded in {duration:.1f}s\n")
+                except: pass
                 return True, "", duration
             else:
-                error_msg = f"ffmpeg failed with code {result.returncode}: {result.stderr[-500:]}"
-                with open(debug_log, "a", encoding="utf-8") as f:
-                    f.write(f"[{datetime.now().isoformat()}] ffmpeg failed: {error_msg}\n")
+                error_msg = f"ffmpeg failed with code {result.returncode}: {stderr_output}"
+                try:
+                    with open(debug_log, "a", encoding="utf-8") as f:
+                        f.write(f"[{datetime.now().isoformat()}] ffmpeg failed: {error_msg}\n")
+                except: pass
                 return False, error_msg, duration
         
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            error_msg = f"Stitching timeout after {duration:.0f}s (10min limit). Codec too slow for this system."
-            with open(debug_log, "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.now().isoformat()}] TIMEOUT: {error_msg}\n")
+            error_msg = f"Stitching timeout after {duration:.0f}s (60min limit)."
             return False, error_msg, duration
-        
         except Exception as e:
             duration = time.time() - start_time
             error_msg = f"Unexpected error: {type(e).__name__}: {e}"
-            with open(debug_log, "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.now().isoformat()}] ERROR: {error_msg}\n")
             return False, error_msg, duration
 
     def _update_sidecar(self, sidecar_path: str, stitch_result: dict) -> None:
