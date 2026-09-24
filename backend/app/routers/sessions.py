@@ -62,7 +62,15 @@ async def get_all_sessions(
                     for i, uri in enumerate(gcs_uris):
                         http_url = uri
                         if uri.startswith("gs://"):
-                            http_url = uri.replace("gs://", "https://storage.googleapis.com/")
+                            import urllib.parse
+                            parsed = urllib.parse.urlparse(uri)
+                            path_parts = parsed.path.lstrip('/').split('/')
+                            blob_path = '/'.join(path_parts[1:])
+                            try:
+                                http_url = get_signed_url(blob_path)
+                            except Exception as ex:
+                                print(f"Error signing url for {blob_path}: {ex}")
+                                http_url = uri.replace("gs://", "https://storage.googleapis.com/")
                             
                         frames.append({
                             "id": f"frame_{i}",
@@ -74,6 +82,7 @@ async def get_all_sessions(
                         })
                         
                     first_img = frames[0]["frame_url"] if frames else None
+                    is_mp4 = first_img and ".mp4" in first_img.lower()
                         
                     video_jobs.append({
                         "id": job["job_id"],
@@ -81,8 +90,8 @@ async def get_all_sessions(
                         "location_label": "360° Video Sequence",
                         "captured_at": created_dt,
                         "created_at": created_dt,
-                        "image_url": first_img,
-                        "thumbnail_url": first_img,
+                        "image_url": None if is_mp4 else first_img,
+                        "thumbnail_url": None if is_mp4 else first_img,
                         "captured_by": "system",
                         "device_model": "Insta360",
                         "gps_lat": None,
@@ -90,7 +99,7 @@ async def get_all_sessions(
                         "ai_status": AIStatusEnum.pending,
                         "ai_summary": None,
                         "ai_changes": None,
-                        "video_url": None,
+                        "video_url": first_img if is_mp4 else None,
                         "fps": 2,
                         "total_frames": len(frames) if frames else None,
                         "processing_status": status_val,

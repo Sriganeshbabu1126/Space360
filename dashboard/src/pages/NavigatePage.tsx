@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSiteContext } from '../context/SiteContext';
 import { getAllSessions } from '../services/api';
-import PathSelector from '../components/PathSelector';
 import ComparePathOverlay from '../components/ComparePathOverlay';
 import PannellumViewer from '../components/PannellumViewer';
 import Viewer360 from '../components/Viewer360';
@@ -9,7 +8,7 @@ import Viewer360 from '../components/Viewer360';
 const NavigatePage: React.FC = () => {
   const { selectedSiteId, selectedFloorPlanId } = useSiteContext();
   const [sessions, setSessions] = useState<any[]>([]);
-  const [selectedPath, setSelectedPath] = useState<any>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [floorPlanImage, setFloorPlanImage] = useState<string>('');
   
   // "toggle button for video/image" -> viewMode state
@@ -21,10 +20,14 @@ const NavigatePage: React.FC = () => {
     document.title = "Navigate | Space360";
     if (selectedSiteId) {
       getAllSessions(selectedSiteId).then(res => {
-        setSessions(res.data);
+        let sorted = res.data.sort((a: any, b: any) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+        if (selectedFloorPlanId) {
+          sorted = sorted.filter((c: any) => c.floor_plan_id === selectedFloorPlanId || c.location_point_id === selectedFloorPlanId);
+        }
+        setSessions(sorted);
       }).catch(console.error);
     }
-  }, [selectedSiteId]);
+  }, [selectedSiteId, selectedFloorPlanId]);
 
   useEffect(() => {
     if (selectedFloorPlanId) {
@@ -38,17 +41,18 @@ const NavigatePage: React.FC = () => {
     }
   }, [selectedFloorPlanId]);
 
-  const frames = selectedPath?.frames || [];
+  const selectedSession = sessions.find(s => s.id === selectedSessionId);
+  const frames = selectedSession?.frames || [];
   const currentFrame = frames[currentFrameIndex];
   
-  const isVideo = selectedPath?.video_url != null && viewMode === 'video';
+  const isVideo = selectedSession?.video_url != null && viewMode === 'video';
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8 max-w-[1600px] mx-auto animate-fade-in">
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Navigate 360° Inspection</h1>
-          <p className="text-gray-600">Select an inspection path and navigate through the capture.</p>
+          <p className="text-gray-600">Select an uploaded video capture to navigate.</p>
         </div>
         
         <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 shadow-inner">
@@ -77,27 +81,34 @@ const NavigatePage: React.FC = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 z-10 flex gap-4">
         <div className="flex-1">
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Select Inspection Path</label>
-          <PathSelector 
-            siteId={selectedSiteId || ''}
-            onPathSelected={setSelectedPath} 
-            selectedPathId={selectedPath?.id} 
-          />
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Select Uploaded Video</label>
+          <select 
+            className="input w-full" 
+            value={selectedSessionId} 
+            onChange={e => setSelectedSessionId(e.target.value)}
+          >
+            <option value="">Select a video capture...</option>
+            {sessions.map(s => (
+              <option key={s.id} value={s.id}>
+                {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown Capture'}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 bg-gray-50 rounded-xl p-4 border border-gray-200">
-        {!selectedPath ? (
+        {!selectedSession ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-lg bg-white rounded-lg border border-dashed border-gray-300">
-            Please select an inspection path to navigate.
+            Please select a video capture to navigate.
           </div>
         ) : (
           <>
             {/* Viewer Panel */}
             <div className="flex-1 bg-black rounded-lg overflow-hidden shadow-inner relative flex flex-col">
-              {viewMode === 'video' && selectedPath.video_url ? (
+              {viewMode === 'video' && selectedSession.video_url ? (
                  <div className="flex-1 relative">
-                    <PannellumViewer url={selectedPath.video_url} isVideo={true} />
+                    <PannellumViewer url={selectedSession.video_url} isVideo={true} />
                  </div>
               ) : viewMode === 'image' && currentFrame ? (
                  <div className="flex-1 relative">
@@ -124,10 +135,13 @@ const NavigatePage: React.FC = () => {
             <div className="w-full lg:w-1/3 bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm relative">
               <div className="absolute inset-0 p-2">
                 <ComparePathOverlay 
-                  selectedPath={selectedPath}
+                  selectedPath={selectedSession}
                   floorPlanImage={floorPlanImage}
-                  currentPointIndex={currentFrameIndex}
-                  onPointClick={(idx) => setCurrentFrameIndex(idx)}
+                  currentVideoTime={currentFrame?.timestamp_seconds || 0}
+                  onPathPointClick={(ts) => {
+                    const idx = frames.findIndex((f: any) => f.timestamp_seconds >= ts);
+                    if (idx >= 0) setCurrentFrameIndex(idx);
+                  }}
                 />
               </div>
             </div>
