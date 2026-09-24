@@ -35,7 +35,7 @@ async def ingest_video(
     # Step 3: Trigger Cloud Run module
     MODULE_URL = os.getenv("MODULE_URL", "https://insta360-module-1046334946412.asia-southeast1.run.app")
     async with httpx.AsyncClient(timeout=60) as client:
-        payload = {"gcs_uri": gcs_uri, "pin_id": pin_id}
+        payload = {"gcs_uri": gcs_uri, "pin_id": pin_id, "site_id": site_id}
         response = await client.post(
             f"{MODULE_URL}/ingest",
             json=payload

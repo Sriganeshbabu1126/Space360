@@ -18,11 +18,12 @@ class JobManager:
     def _get_doc_ref(self, job_id: str):
         return self.db.collection(self.collection_name).document(job_id)
 
-    def create(self, source_dir: str) -> str:
+    def create(self, source_dir: str, site_id: str = None) -> str:
         job_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         job = {
             "job_id": job_id,
+            "site_id": site_id,
             "status": "queued",
             "source_dir": source_dir,
             "created_at_utc": now,
@@ -132,6 +133,7 @@ class JobManager:
                 j = doc.to_dict()
                 result.append({
                     "job_id": j.get("job_id"),
+                    "site_id": j.get("site_id"),
                     "status": j.get("status"),
                     "created_at_utc": j.get("created_at_utc"),
                     "summary": j.get("summary")

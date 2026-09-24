@@ -40,6 +40,9 @@ async def get_all_sessions(
             if resp.status_code == 200:
                 jobs = resp.json()
                 for job in jobs:
+                    if site_id and job.get("site_id") and job.get("site_id") != site_id:
+                        continue
+                        
                     created_dt = datetime.utcnow()
                     if job.get("created_at_utc"):
                         try:
@@ -57,11 +60,15 @@ async def get_all_sessions(
                     
                     frames = []
                     for i, uri in enumerate(gcs_uris):
+                        http_url = uri
+                        if uri.startswith("gs://"):
+                            http_url = uri.replace("gs://", "https://storage.googleapis.com/")
+                            
                         frames.append({
                             "id": f"frame_{i}",
                             "session_id": job["job_id"],
                             "frame_number": i,
-                            "frame_url": uri,
+                            "frame_url": http_url,
                             "timestamp_seconds": i * 0.5,
                             "created_at": created_dt
                         })

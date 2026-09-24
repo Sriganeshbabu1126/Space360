@@ -55,15 +55,18 @@ async def ingest_async(request: Request):
     file = None
     is_temp = False
     
+    site_id = None
     try:
         body = await request.json()
         actual_source_dir = body.get("source_dir")
         gcs_uri = body.get("gcs_uri")
+        site_id = body.get("site_id")
     except Exception:
         form = await request.form()
         actual_source_dir = form.get("source_dir")
         gcs_uri = form.get("gcs_uri")
         file = form.get("file")
+        site_id = form.get("site_id")
 
     if gcs_uri:
         tmp_dir = tempfile.mkdtemp()
@@ -105,7 +108,7 @@ async def ingest_async(request: Request):
     if not os.path.exists(actual_source_dir):
         raise HTTPException(status_code=404, detail="source_dir does not exist")
         
-    job_id = job_manager.create(actual_source_dir)
+    job_id = job_manager.create(actual_source_dir, site_id)
     pipeline_runner.run(job_id, actual_source_dir, cleanup=is_temp)
     
     return {

@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Outlet, useNavigate } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import FloorPlanSelector from '../components/FloorPlanSelector';
+import FloorPlanUpload from '../components/FloorPlanUpload';
 
 const ProjectDashboard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { selectedSiteId, setSelectedSiteId, sites, loading } = useSite();
   const navigate = useNavigate();
+  const [showUpload, setShowUpload] = useState(false);
 
   useEffect(() => {
     // If the projectId in URL doesn't match context, update context
@@ -40,14 +42,30 @@ const ProjectDashboard: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Project Header Context Area */}
-      <div className="bg-white border-b border-gray-200 p-4 md:px-8 mb-6 rounded-xl shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
-          {currentSite?.name}
-        </h1>
-        <div className="max-w-md">
-          <FloorPlanSelector />
+      <div className="bg-white border-b border-gray-200 p-4 md:px-8 mb-6 rounded-xl shadow-sm flex flex-col md:flex-row md:items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            {currentSite?.name}
+          </h1>
+          <div className="max-w-md flex space-x-4 items-end">
+            <div className="flex-1">
+              <FloorPlanSelector />
+            </div>
+            <button 
+              onClick={() => setShowUpload(!showUpload)}
+              className="mb-6 btn-secondary whitespace-nowrap h-10 px-4"
+            >
+              {showUpload ? 'Cancel Upload' : 'Upload Floor Plan'}
+            </button>
+          </div>
         </div>
       </div>
+      
+      {showUpload && (
+        <div className="px-4 md:px-8">
+           <FloorPlanUpload onUploadSuccess={() => { setShowUpload(false); window.location.reload(); }} />
+        </div>
+      )}
 
       {/* Feature Content Area (Nested Routes) */}
       <div className="flex-1">

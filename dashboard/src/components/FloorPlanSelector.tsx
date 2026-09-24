@@ -50,7 +50,7 @@ const FloorPlanSelector: React.FC = () => {
           </option>
           {floorPlans.map((fp) => (
             <option key={fp.id} value={fp.id}>
-              {fp.name}
+              {fp.label || fp.name}
             </option>
           ))}
         </select>

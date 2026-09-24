@@ -14,6 +14,7 @@ import VideoJobStatusPage from './pages/VideoJobStatusPage';
 import ComparePage from './pages/ComparePage';
 import AIDetectPage from './pages/AIDetectPage';
 import ReportGenerationPage from './pages/ReportGenerationPage';
+import NavigatePage from './pages/NavigatePage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -31,9 +32,10 @@ const AppRoutes = () => (
       
       {/* Project Context Pages */}
       <Route path="projects/:projectId" element={<ProjectDashboard />}>
-        {/* Default route inside project redirects to captures */}
-        <Route index element={<Navigate to="captures" replace />} />
+        {/* Default route inside project redirects to navigate */}
+        <Route index element={<Navigate to="navigate" replace />} />
         
+        <Route path="navigate" element={<NavigatePage />} />
         <Route path="captures" element={<CapturesPage />} />
         <Route path="compare" element={<ComparePage />} />
         <Route path="issues" element={<IssuesPage />} />

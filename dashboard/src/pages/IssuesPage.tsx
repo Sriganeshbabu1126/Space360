@@ -348,6 +348,7 @@ const IssuesPage: React.FC = () => {
     }
   };
   const [exporting, setExporting] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleExport = async (format: string) => {
     if (exporting) return;
@@ -439,18 +440,24 @@ const IssuesPage: React.FC = () => {
           </span>
         </h2>
         <div className="flex space-x-3">
-          <div className="relative group">
-            <button disabled={exporting} className="btn-secondary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+          <div className="relative" onMouseLeave={() => setDropdownOpen(false)}>
+            <button 
+              disabled={exporting} 
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="btn-secondary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm"
+            >
               <Download className="w-4 h-4 mr-1.5" />
               {exporting ? 'Exporting...' : 'Export'}
             </button>
-            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg border border-gray-100 hidden group-hover:block z-50 overflow-hidden">
-              <button onClick={() => handleExport('csv')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => handleExport('excel')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel</button>
-              <button onClick={() => handleExport('pdf')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-            </div>
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-100 z-50 overflow-hidden">
+                <button onClick={() => { handleExport('csv'); setDropdownOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+                <button onClick={() => { handleExport('excel'); setDropdownOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel</button>
+                <button onClick={() => { handleExport('pdf'); setDropdownOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              </div>
+            )}
           </div>
-          <button onClick={() => navigate('/captures')} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
+          <button onClick={() => navigate(`../captures`)} className="btn-primary flex items-center py-2 px-4 text-sm whitespace-nowrap shadow-sm">
             <Plus className="w-4 h-4 mr-1.5" />
             Create Issue
           </button>
@@ -724,7 +731,7 @@ const IssuesPage: React.FC = () => {
                       onClick={() => {
                         const captureId = selectedIssue.session_a_id;
                         setSelectedIssue(null);
-                        navigate(`/captures?highlight=${captureId}`);
+                        navigate(`../captures?highlight=${captureId}`);
                       }}
                       className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors shadow-sm flex items-center min-h-[44px]"
                     >
@@ -914,11 +921,17 @@ const IssuesPage: React.FC = () => {
                 
                 {/* Context Links (Sessions) */}
                 <div className="pt-4 border-t border-gray-100 space-y-2">
-                   <button className="w-full py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors">
+                   <button 
+                     onClick={() => { setSelectedIssue(null); navigate(`../captures?highlight=${selectedIssue.session_a_id}`); }}
+                     className="w-full py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                   >
                      View Session A
                    </button>
                    {selectedIssue.session_b_id && (
-                     <button className="w-full py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors">
+                     <button 
+                       onClick={() => { setSelectedIssue(null); navigate(`../captures?highlight=${selectedIssue.session_b_id}`); }}
+                       className="w-full py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                     >
                        View Session B
                      </button>
                    )}

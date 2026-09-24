@@ -79,22 +79,27 @@ class IssueFilterQuery:
             query = query.filter(Issue.created_at <= self.date_end)
             
         if self.search_text:
-            search_query = func.plainto_tsquery('english', self.search_text)
-            
-            # Combine title and description for TS Vector
-            issue_vector = func.to_tsvector('english', func.coalesce(Issue.title, '') + ' ' + func.coalesce(Issue.description, ''))
-            
-            # We also want to search comments
-            # To do this correctly in SQL without messing up the main query rows, an EXISTS subquery is often better.
-            comment_vector = func.to_tsvector('english', func.coalesce(IssueComment.comment_text, ''))
+            from sqlalchemy import or_
+            term = f"%{self.search_text}%"
             
             has_comment_match = self.db.query(IssueComment).filter(
                 IssueComment.issue_id == Issue.id,
-                comment_vector.op('@@')(search_query)
+                IssueComment.comment_text.ilike(term)
+            ).exists()
+            
+            has_assignee_match = self.db.query(IssueAssignment).join(Contractor).filter(
+                IssueAssignment.issue_id == Issue.id,
+                Contractor.name.ilike(term)
             ).exists()
             
             query = query.filter(
-                issue_vector.op('@@')(search_query) | has_comment_match
+                or_(
+                    Issue.title.ilike(term),
+                    Issue.description.ilike(term),
+                    Issue.id.ilike(term),
+                    has_comment_match,
+                    has_assignee_match
+                )
             )
 
         direction = desc if self.sort_direction.lower() == 'desc' else asc

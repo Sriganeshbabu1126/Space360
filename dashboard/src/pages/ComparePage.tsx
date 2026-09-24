@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import { analyzeVisualChanges } from '../services/aiAnalysis';
 import PathSelector from '../components/PathSelector';
 import ComparePathOverlay from '../components/ComparePathOverlay';
+import CreateIssueModal, { CaptureData } from '../components/CreateIssueModal';
 import { useSiteContext } from '../context/SiteContext';
 declare global {
   interface Window {
@@ -31,10 +32,12 @@ const ComparePage: React.FC = () => {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<string>('');
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
   
   // Path states
   const [selectedPath, setSelectedPath] = useState<any>(null);
   const [floorPlanImage, setFloorPlanImage] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'video' | 'image'>('video');
 
   const viewerARef = useRef<HTMLDivElement>(null);
   const viewerBRef = useRef<HTMLDivElement>(null);
@@ -98,7 +101,7 @@ const ComparePage: React.FC = () => {
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
-  const isVideoCapture = (capture: any) => capture?.type === 'video' || !!capture?.job_id;
+  const isVideoCapture = (capture: any) => (capture?.type === 'video' || !!capture?.job_id) && viewMode === 'video';
   const isVideoA = isVideoCapture(sessionA);
   const isVideoB = isVideoCapture(sessionB);
   const isMixedType = sessionA && sessionB && (isVideoA !== isVideoB);
@@ -148,7 +151,7 @@ const ComparePage: React.FC = () => {
         videoAElement.current = null;
       }
     };
-  }, [sessionA]);
+  }, [sessionA, viewMode]);
 
   // Initialize Viewer B
   useEffect(() => {
@@ -192,7 +195,7 @@ const ComparePage: React.FC = () => {
         videoBElement.current = null;
       }
     };
-  }, [sessionB]);
+  }, [sessionB, viewMode]);
 
   // Sync Loop
   useEffect(() => {
@@ -426,6 +429,31 @@ const ComparePage: React.FC = () => {
               onPathSelected={setSelectedPath} 
             />
           </div>
+          
+          <div className="flex-none pb-0.5">
+            <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+              <button
+                onClick={() => setViewMode('video')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'video' 
+                    ? 'bg-white text-brand-700 shadow shadow-gray-200/50' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Video
+              </button>
+              <button
+                onClick={() => setViewMode('image')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'image' 
+                    ? 'bg-white text-brand-700 shadow shadow-gray-200/50' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Image
+              </button>
+            </div>
+          </div>
 
           <div className="flex-1">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Left Viewer (A)</label>
@@ -572,18 +600,54 @@ const ComparePage: React.FC = () => {
             <h3 className="font-semibold text-gray-800 flex items-center">
               <Zap className="w-5 h-5 mr-2 text-brand-500" /> AI Change Analysis
             </h3>
-            <button 
-              onClick={handleAnalyzeChanges} 
-              disabled={isAnalyzing}
-              className="px-4 py-1.5 bg-brand-100 text-brand-700 rounded-md text-sm font-medium hover:bg-brand-200 disabled:opacity-50"
-            >
-              {isAnalyzing ? "Analyzing..." : "Analyze Changes"}
-            </button>
+            <div className="flex space-x-2">
+              <button 
+                onClick={handleAnalyzeChanges} 
+                disabled={isAnalyzing}
+                className="px-4 py-1.5 bg-brand-100 text-brand-700 rounded-md text-sm font-medium hover:bg-brand-200 disabled:opacity-50 transition-colors"
+              >
+                {isAnalyzing ? "Analyzing..." : "Analyze Changes"}
+              </button>
+              <button 
+                onClick={() => setShowCreateIssue(true)}
+                className="px-4 py-1.5 bg-brand-600 text-white rounded-md text-sm font-medium hover:bg-brand-700 transition-colors shadow-sm"
+              >
+                Create Issue
+              </button>
+            </div>
           </div>
           <div className="text-sm text-gray-600 bg-gray-50 rounded p-4 border border-gray-100 min-h-[60px] whitespace-pre-wrap">
             {aiResult || "Click 'Analyze Changes' to identify visual differences between these two captures."}
           </div>
         </div>
+      )}
+      
+      {showCreateIssue && sessionA && (
+        <CreateIssueModal
+          captureId={sessionA.id}
+          captureData={{
+            image_url: isVideoCapture(sessionA) && videoAElement.current ? videoAElement.current.src : sessionA.image_url,
+            captured_at: sessionA.captured_at,
+            location_name: sessionA.location_label || 'Compare View',
+            frame_timestamp: isVideoCapture(sessionA) && videoAElement.current ? videoAElement.current.currentTime : undefined
+          } as CaptureData}
+          onClose={() => setShowCreateIssue(false)}
+          onSubmit={async (data) => {
+            try {
+              const { createIssue } = await import('../services/api');
+              await createIssue({
+                ...data,
+                location_id: sessionA.location_point_id,
+                session_a_id: sessionA.id,
+                session_b_id: sessionB?.id
+              });
+              toast.success('Issue created from compare view');
+              setShowCreateIssue(false);
+            } catch (err: any) {
+              toast.error(err.message || 'Failed to create issue');
+            }
+          }}
+        />
       )}
     </div>
   );
