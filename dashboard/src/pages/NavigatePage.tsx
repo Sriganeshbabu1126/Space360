@@ -79,7 +79,8 @@ const NavigatePage: React.FC = () => {
         <div className="flex-1">
           <label className="block text-sm font-semibold text-gray-700 mb-1">Select Inspection Path</label>
           <PathSelector 
-            onSelectPath={setSelectedPath} 
+            siteId={selectedSiteId || ''}
+            onPathSelected={setSelectedPath} 
             selectedPathId={selectedPath?.id} 
           />
         </div>
