@@ -161,6 +161,7 @@ class CaptureFrameResponse(BaseModel):
 class CaptureSessionResponse(BaseModel):
     id: str
     location_point_id: Optional[str] = None
+    floor_plan_id: Optional[str] = None
     location_label: Optional[str] = None
     captured_at: datetime
     image_url: Optional[str]

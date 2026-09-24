@@ -130,6 +130,11 @@ class CaptureSession(Base):
     voice_notes = relationship("VoiceNote", 
                                back_populates="session",
                                cascade="all, delete-orphan")
+                               
+    @property
+    def floor_plan_id(self):
+        return self.location_point.floor_plan_id if self.location_point else None
+
     annotations = relationship("Annotation", 
                                back_populates="session",
                                cascade="all, delete-orphan")

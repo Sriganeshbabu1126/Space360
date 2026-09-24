@@ -89,6 +89,7 @@ async def get_all_sessions(
                     video_jobs.append({
                         "id": job["job_id"],
                         "location_point_id": None,
+                        "floor_plan_id": job.get("floor_plan_id"),
                         "location_label": "360° Video Sequence",
                         "captured_at": created_dt,
                         "created_at": created_dt,
