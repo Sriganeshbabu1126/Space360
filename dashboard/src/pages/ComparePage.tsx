@@ -115,6 +115,8 @@ const ComparePage: React.FC = () => {
       const isVideo = isVideoCapture(sessionA);
       const url = isVideo ? (sessionA.video_url || sessionA.image_url) : sessionA.image_url;
       
+      if (!url) return;
+
       let config: any = {
         type: 'equirectangular',
         autoLoad: true,
@@ -159,6 +161,8 @@ const ComparePage: React.FC = () => {
       const isVideo = isVideoCapture(sessionB);
       const url = isVideo ? (sessionB.video_url || sessionB.image_url) : sessionB.image_url;
       
+      if (!url) return;
+
       let config: any = {
         type: 'equirectangular',
         autoLoad: true,
