@@ -20,10 +20,10 @@ const NavigatePage: React.FC = () => {
     document.title = "Navigate | Space360";
     if (selectedSiteId) {
       getAllSessions(selectedSiteId).then(res => {
-        let sorted = res.data.sort((a: any, b: any) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
-        if (selectedFloorPlanId) {
-          sorted = sorted.filter((c: any) => c.floor_plan_id === selectedFloorPlanId || c.location_point_id === selectedFloorPlanId);
-        }
+        // Filter to only video captures (ignore static 360 photos)
+        const videoCaptures = res.data.filter((c: any) => c.type === 'video' || !!c.job_id);
+        let sorted = videoCaptures.sort((a: any, b: any) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+        
         setSessions(sorted);
       }).catch(console.error);
     }

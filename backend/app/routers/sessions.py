@@ -40,8 +40,10 @@ async def get_all_sessions(
             if resp.status_code == 200:
                 jobs = resp.json()
                 for job in jobs:
-                    if site_id and job.get("site_id") and job.get("site_id") != site_id:
-                        continue
+                    if site_id:
+                        job_site_id = job.get("site_id")
+                        if not job_site_id or job_site_id != site_id:
+                            continue
                         
                     created_dt = datetime.utcnow()
                     if job.get("created_at_utc"):

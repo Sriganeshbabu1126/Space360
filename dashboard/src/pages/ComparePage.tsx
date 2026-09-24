@@ -101,7 +101,8 @@ const ComparePage: React.FC = () => {
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
-  const isVideoCapture = (capture: any) => (capture?.type === 'video' || !!capture?.job_id) && viewMode === 'video';
+  const isVideoCapture = (capture: any) => capture?.type === 'video' || !!capture?.job_id;
+  const filteredSessions = sessions.filter(s => viewMode === 'video' ? isVideoCapture(s) : !isVideoCapture(s));
   const isVideoA = isVideoCapture(sessionA);
   const isVideoB = isVideoCapture(sessionB);
   const isMixedType = sessionA && sessionB && (isVideoA !== isVideoB);
@@ -467,7 +468,7 @@ const ComparePage: React.FC = () => {
               onChange={e => setSessionAId(e.target.value)}
             >
               <option value="">Select a capture...</option>
-              {sessions.map(s => (
+              {filteredSessions.map(s => (
                 <option key={s.id} value={s.id}>
                   {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
                 </option>
@@ -500,7 +501,7 @@ const ComparePage: React.FC = () => {
               onChange={e => setSessionBId(e.target.value)}
             >
               <option value="">Select a capture...</option>
-              {sessions.map(s => (
+              {filteredSessions.map(s => (
                 <option key={s.id} value={s.id}>
                   {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
                 </option>
