@@ -23,6 +23,7 @@ const NavigatePage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   // Sync video time
   useEffect(() => {
@@ -30,6 +31,7 @@ const NavigatePage: React.FC = () => {
     const syncTime = () => {
       if (videoRef.current) {
         setCurrentVideoTime(videoRef.current.currentTime);
+        setDuration(videoRef.current.duration || 0);
       }
       animFrame = requestAnimationFrame(syncTime);
     };
@@ -58,6 +60,14 @@ const NavigatePage: React.FC = () => {
         videoRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentVideoTime(time);
     }
   };
 
@@ -194,11 +204,20 @@ const NavigatePage: React.FC = () => {
                     )}
                     
                     {/* Controls Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity z-10">
-                      <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all">
-                        {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center space-x-4 opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity z-10">
+                      <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all shrink-0">
+                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                       </button>
-                      <button onClick={toggleFullScreen} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all">
+                      <input 
+                        type="range" 
+                        min={0} 
+                        max={duration || 100} 
+                        step="0.01" 
+                        value={currentVideoTime} 
+                        onChange={handleSeek} 
+                        className="w-full accent-brand-500 cursor-pointer flex-1" 
+                      />
+                      <button onClick={toggleFullScreen} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all shrink-0">
                         {isFullScreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
                       </button>
                     </div>
