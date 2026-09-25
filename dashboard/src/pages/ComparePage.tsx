@@ -148,17 +148,38 @@ const ComparePage: React.FC = () => {
         videoElement.crossOrigin = 'anonymous';
         videoElement.muted = true;
         videoElement.loop = true;
-        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
-        
+        videoElement.playsInline = true;
+        videoElement.preload = 'auto';
+        videoElement.style.position = 'absolute';
+        videoElement.style.top = '0';
+        videoElement.style.left = '0';
+        videoElement.style.opacity = '0.001';
+        videoElement.style.pointerEvents = 'none';
+        videoElement.style.zIndex = '-1000';
+        document.body.appendChild(videoElement);
+
         videoAElement.current = videoElement;
-        config.panorama = videoElement;
-        config.dynamic = true;
+
+        videoElement.onloadeddata = () => {
+          videoElement.width = videoElement.videoWidth;
+          videoElement.height = videoElement.videoHeight;
+          config.panorama = videoElement;
+          config.dynamic = true;
+          config.dynamicUpdate = true;
+          
+          if (viewerARef.current) {
+            pannellumA.current = window.pannellum.viewer(viewerARef.current, config);
+            setTimeout(() => {
+              videoElement.dispatchEvent(new Event('load'));
+            }, 50);
+          }
+        };
+        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
       } else {
         videoAElement.current = null;
         config.panorama = url;
+        pannellumA.current = window.pannellum.viewer(viewerARef.current, config);
       }
-
-      pannellumA.current = window.pannellum.viewer(viewerARef.current, config);
     }
     return () => {
       if (pannellumA.current) {
@@ -168,6 +189,9 @@ const ComparePage: React.FC = () => {
       if (videoAElement.current) {
         videoAElement.current.pause();
         videoAElement.current.src = "";
+        if (videoAElement.current.parentNode) {
+          videoAElement.current.parentNode.removeChild(videoAElement.current);
+        }
         videoAElement.current = null;
       }
     };
@@ -194,17 +218,38 @@ const ComparePage: React.FC = () => {
         videoElement.crossOrigin = 'anonymous';
         videoElement.muted = true;
         videoElement.loop = true;
-        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
-        
+        videoElement.playsInline = true;
+        videoElement.preload = 'auto';
+        videoElement.style.position = 'absolute';
+        videoElement.style.top = '0';
+        videoElement.style.left = '0';
+        videoElement.style.opacity = '0.001';
+        videoElement.style.pointerEvents = 'none';
+        videoElement.style.zIndex = '-1000';
+        document.body.appendChild(videoElement);
+
         videoBElement.current = videoElement;
-        config.panorama = videoElement;
-        config.dynamic = true;
+
+        videoElement.onloadeddata = () => {
+          videoElement.width = videoElement.videoWidth;
+          videoElement.height = videoElement.videoHeight;
+          config.panorama = videoElement;
+          config.dynamic = true;
+          config.dynamicUpdate = true;
+          
+          if (viewerBRef.current) {
+            pannellumB.current = window.pannellum.viewer(viewerBRef.current, config);
+            setTimeout(() => {
+              videoElement.dispatchEvent(new Event('load'));
+            }, 50);
+          }
+        };
+        videoElement.play().catch(e => console.error("Autoplay prevented:", e));
       } else {
         videoBElement.current = null;
         config.panorama = url;
+        pannellumB.current = window.pannellum.viewer(viewerBRef.current, config);
       }
-
-      pannellumB.current = window.pannellum.viewer(viewerBRef.current, config);
     }
     return () => {
       if (pannellumB.current) {
@@ -214,6 +259,9 @@ const ComparePage: React.FC = () => {
       if (videoBElement.current) {
         videoBElement.current.pause();
         videoBElement.current.src = "";
+        if (videoBElement.current.parentNode) {
+          videoBElement.current.parentNode.removeChild(videoBElement.current);
+        }
         videoBElement.current = null;
       }
     };
