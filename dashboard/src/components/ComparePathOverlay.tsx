@@ -38,12 +38,14 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
   // Track hovered point
   const [hoveredPoint, setHoveredPoint] = useState<Point | null>(null);
 
+  const pathPoints = selectedPath?.points || [];
+
   // Auto-zoom logic
   useEffect(() => {
-    if (!selectedPath || selectedPath.points.length === 0) return;
+    if (pathPoints.length === 0) return;
     
     // Find nearest point
-    const points = selectedPath.points;
+    const points = pathPoints;
     let nearest = points[0];
     let minDiff = Math.abs(currentVideoTime - nearest.timestamp);
     
@@ -75,7 +77,7 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
 
   // Handle Wheel Zoom
   const handleWheel = (e: React.WheelEvent) => {
-    if (!selectedPath || selectedPath.points.length < 50) return;
+    if (pathPoints.length < 50) return;
     e.preventDefault();
     const zoomFactor = -e.deltaY * 0.005;
     setScale(prev => Math.min(Math.max(1, prev + zoomFactor), 5));
@@ -101,10 +103,10 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
   };
 
   const currentPointIndex = useMemo(() => {
-    if (!selectedPath || !selectedPath.points.length) return -1;
+    if (pathPoints.length === 0) return -1;
     let idx = 0;
-    let minDiff = Math.abs(currentVideoTime - selectedPath.points[0].timestamp);
-    selectedPath.points.forEach((pt, i) => {
+    let minDiff = Math.abs(currentVideoTime - pathPoints[0].timestamp);
+    pathPoints.forEach((pt: any, i: number) => {
       const diff = Math.abs(currentVideoTime - pt.timestamp);
       if (diff < minDiff) {
         minDiff = diff;
@@ -112,14 +114,14 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
       }
     });
     return idx;
-  }, [selectedPath, currentVideoTime]);
+  }, [pathPoints, currentVideoTime]);
 
-  if (!selectedPath || !floorPlanImage) return null;
+  if (!floorPlanImage) return null;
 
   return (
     <div className="absolute bottom-4 left-4 w-64 h-64 bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl overflow-hidden z-30 flex flex-col group transition-all duration-300 hover:w-96 hover:h-96">
       <div className="bg-black/60 px-3 py-1.5 flex justify-between items-center text-xs text-white shrink-0">
-        <span className="font-semibold tracking-wide">Path Map</span>
+        <span className="font-semibold tracking-wide">Floor Plan Map</span>
         <div className="flex gap-2">
           {scale > 1 && (
             <button 
@@ -129,7 +131,7 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
               Reset View
             </button>
           )}
-          <span className="opacity-60">{selectedPath.points.length} pts</span>
+          <span className="opacity-60">{pathPoints.length} pts</span>
         </div>
       </div>
       
@@ -160,9 +162,9 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
 
           {/* Path Line */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
-             {selectedPath.points.length > 1 && (
+             {pathPoints.length > 1 && (
                 <polyline 
-                  points={selectedPath.points.map(p => `${p.x}%,${p.y}%`).join(' ')}
+                  points={pathPoints.map((p: any) => `${p.x}%,${p.y}%`).join(' ')}
                   fill="none"
                   stroke="rgba(99, 102, 241, 0.5)"
                   strokeWidth="2"
@@ -172,7 +174,7 @@ const ComparePathOverlay: React.FC<ComparePathOverlayProps> = ({
           </svg>
 
           {/* Path Points */}
-          {selectedPath.points.map((pt, i) => {
+          {pathPoints.map((pt: any, i: number) => {
             const isCurrent = i === currentPointIndex;
             return (
               <div
