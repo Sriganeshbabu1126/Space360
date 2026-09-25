@@ -21,7 +21,7 @@ const NavigatePage: React.FC = () => {
     if (selectedSiteId) {
       getAllSessions(selectedSiteId).then(res => {
         // Filter to only video captures (ignore static 360 photos)
-        const videoCaptures = res.data.filter((c: any) => c.type === 'video' || !!c.job_id);
+        const videoCaptures = res.data.filter((c: any) => c.video_url != null || c.location_label === '360° Video Sequence' || c.processing_status === 'pending' || (c.frames && c.frames.length > 0));
         let sorted = videoCaptures.sort((a: any, b: any) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
         
         setSessions(sorted);
