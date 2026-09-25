@@ -27,8 +27,6 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
         // without the videojs plugin or dynamic plugin.
         // Wait, some forks or newer versions just use `type: 'video'` or similar?
         // Let's implement the standard way, or we can just pass the config.
-        // For video, Pannellum needs an HTML video element and dynamic: true
-        let finalPanorama = url;
         let config: any = {
           type: 'equirectangular',
           autoLoad: true,
@@ -42,19 +40,25 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
           videoElement.crossOrigin = 'anonymous';
           videoElement.muted = true; // Auto-play policies usually require muting
           videoElement.loop = true;
-          videoElement.play().catch(e => console.error("Autoplay prevented:", e));
+          videoElement.onerror = (e) => {
+            console.error("Video load error", e);
+          };
           
-          if (onVideoCreate) {
-            onVideoCreate(videoElement);
-          }
-
-          finalPanorama = videoElement as any;
-          config.dynamic = true; // This is the correct parameter instead of video: true
+          videoElement.onloadeddata = () => {
+            if (onVideoCreate) {
+              onVideoCreate(videoElement);
+            }
+            config.dynamic = true;
+            config.panorama = videoElement;
+            if (viewerRef.current) {
+              pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
+            }
+            videoElement.play().catch(e => console.error("Autoplay prevented:", e));
+          };
+        } else {
+          config.panorama = url;
+          pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
         }
-
-        config.panorama = finalPanorama;
-
-        pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
       }
     }
 
