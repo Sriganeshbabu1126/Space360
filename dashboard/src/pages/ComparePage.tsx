@@ -15,9 +15,10 @@ declare global {
 }
 
 const ComparePage: React.FC = () => {
-  const { selectedSiteId, selectedFloorPlanId } = useSiteContext();
+  const { selectedSiteId, selectedFloorPlanId, sites: contextSites } = useSiteContext();
   const [sessions, setSessions] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
+  const [floorPlansMap, setFloorPlansMap] = useState<Record<string, string>>({});
   
   // Use selectedSiteId from context instead of local state if it exists
   const [localSiteId, setLocalSiteId] = useState<string>('');
@@ -53,6 +54,18 @@ const ComparePage: React.FC = () => {
   // Fetch floor plan image for overlay
   useEffect(() => {
     const fetchFP = async () => {
+      if (activeSiteId) {
+        try {
+          const { getFloorPlans } = await import('../services/api');
+          const res = await getFloorPlans(activeSiteId);
+          const map: Record<string, string> = {};
+          res.data.forEach((fp: any) => { map[fp.id] = fp.name; });
+          setFloorPlansMap(map);
+        } catch(e) {
+          console.error(e);
+        }
+      }
+
       if (selectedFloorPlanId) {
         try {
           const { getFloorPlan } = await import('../services/api');
@@ -66,7 +79,7 @@ const ComparePage: React.FC = () => {
       }
     };
     fetchFP();
-  }, [selectedFloorPlanId]);
+  }, [selectedFloorPlanId, activeSiteId]);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -468,11 +481,17 @@ const ComparePage: React.FC = () => {
               onChange={e => setSessionAId(e.target.value)}
             >
               <option value="">Select a capture...</option>
-              {filteredSessions.map(s => (
-                <option key={s.id} value={s.id}>
-                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
-                </option>
-              ))}
+              {filteredSessions.map(s => {
+                const siteName = (contextSites && contextSites.length > 0 ? contextSites : sites).find(site => site.id === activeSiteId)?.name || s.site_name || 'Project';
+                const fpName = s.floor_plan_id ? floorPlansMap[s.floor_plan_id] : 'Floor Plan';
+                const dateTime = new Date(s.captured_at).toLocaleString();
+                const label = s.location_label || s.location_point_id?.slice(0, 8) || 'Video Walk';
+                return (
+                  <option key={s.id} value={s.id}>
+                    {siteName} &gt; {fpName} &gt; {dateTime} &gt; {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
           
@@ -501,11 +520,17 @@ const ComparePage: React.FC = () => {
               onChange={e => setSessionBId(e.target.value)}
             >
               <option value="">Select a capture...</option>
-              {filteredSessions.map(s => (
-                <option key={s.id} value={s.id}>
-                  {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown'} ({s.site_name || 'Site'})
-                </option>
-              ))}
+              {filteredSessions.map(s => {
+                const siteName = (contextSites && contextSites.length > 0 ? contextSites : sites).find(site => site.id === activeSiteId)?.name || s.site_name || 'Project';
+                const fpName = s.floor_plan_id ? floorPlansMap[s.floor_plan_id] : 'Floor Plan';
+                const dateTime = new Date(s.captured_at).toLocaleString();
+                const label = s.location_label || s.location_point_id?.slice(0, 8) || 'Video Walk';
+                return (
+                  <option key={s.id} value={s.id}>
+                    {siteName} &gt; {fpName} &gt; {dateTime} &gt; {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

@@ -6,10 +6,11 @@ import PannellumViewer from '../components/PannellumViewer';
 import Viewer360 from '../components/Viewer360';
 
 const NavigatePage: React.FC = () => {
-  const { selectedSiteId, selectedFloorPlanId } = useSiteContext();
+  const { selectedSiteId, selectedFloorPlanId, sites } = useSiteContext();
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [floorPlanImage, setFloorPlanImage] = useState<string>('');
+  const [floorPlansMap, setFloorPlansMap] = useState<Record<string, string>>({});
   
   // "toggle button for video/image" -> viewMode state
   const [viewMode, setViewMode] = useState<'video' | 'image'>('video');
@@ -19,6 +20,16 @@ const NavigatePage: React.FC = () => {
   useEffect(() => {
     document.title = "Navigate | Space360";
     if (selectedSiteId) {
+      import('../services/api').then(({ getFloorPlans }) => {
+        getFloorPlans(selectedSiteId).then(res => {
+          const map: Record<string, string> = {};
+          res.data.forEach((fp: any) => {
+            map[fp.id] = fp.name;
+          });
+          setFloorPlansMap(map);
+        }).catch(console.error);
+      });
+
       getAllSessions(selectedSiteId).then(res => {
         // Filter to only video captures (ignore static 360 photos)
         const videoCaptures = res.data.filter((c: any) => c.video_url != null || c.location_label === '360° Video Sequence' || c.processing_status === 'pending' || (c.frames && c.frames.length > 0));
@@ -88,11 +99,17 @@ const NavigatePage: React.FC = () => {
             onChange={e => setSelectedSessionId(e.target.value)}
           >
             <option value="">Select a video capture...</option>
-            {sessions.map(s => (
-              <option key={s.id} value={s.id}>
-                {new Date(s.captured_at).toLocaleDateString()} - {s.location_label || s.location_point_id?.slice(0, 8) || 'Unknown Capture'}
-              </option>
-            ))}
+            {sessions.map(s => {
+              const siteName = sites.find(site => site.id === selectedSiteId)?.name || 'Project';
+              const fpName = s.floor_plan_id ? floorPlansMap[s.floor_plan_id] : 'Floor Plan';
+              const dateTime = new Date(s.captured_at).toLocaleString();
+              const label = s.location_label || s.location_point_id?.slice(0, 8) || 'Video Walk';
+              return (
+                <option key={s.id} value={s.id}>
+                  {siteName} &gt; {fpName} &gt; {dateTime} &gt; {label}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
