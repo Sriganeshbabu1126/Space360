@@ -40,6 +40,11 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
           videoElement.crossOrigin = 'anonymous';
           videoElement.muted = true; // Auto-play policies usually require muting
           videoElement.loop = true;
+          videoElement.playsInline = true;
+          videoElement.preload = 'auto';
+          videoElement.style.display = 'none';
+          document.body.appendChild(videoElement);
+
           videoElement.onerror = (e) => {
             console.error("Video load error", e);
           };
@@ -53,8 +58,9 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
             if (viewerRef.current) {
               pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
             }
-            videoElement.play().catch(e => console.error("Autoplay prevented:", e));
           };
+
+          videoElement.play().catch(e => console.error("Autoplay prevented:", e));
         } else {
           config.panorama = url;
           pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
@@ -70,6 +76,13 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
           console.error("Error destroying pannellum instance", e);
         }
       }
+      // Cleanup video elements if we created one
+      const videos = document.querySelectorAll(`video[src="${url}"]`);
+      videos.forEach(v => {
+        if (v.parentNode === document.body) {
+          document.body.removeChild(v);
+        }
+      });
     };
   }, [url, isVideo]);
 
