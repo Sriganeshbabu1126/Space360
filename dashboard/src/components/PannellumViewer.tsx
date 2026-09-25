@@ -43,9 +43,11 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
           videoElement.playsInline = true;
           videoElement.preload = 'auto';
           videoElement.style.position = 'absolute';
-          videoElement.style.left = '-9999px';
-          videoElement.style.width = '1px';
-          videoElement.style.height = '1px';
+          videoElement.style.top = '0';
+          videoElement.style.left = '0';
+          videoElement.style.opacity = '0.001'; // Force rendering, avoid browser optimization
+          videoElement.style.pointerEvents = 'none';
+          videoElement.style.zIndex = '-1000';
           document.body.appendChild(videoElement);
 
           videoElement.onerror = (e) => {
@@ -56,12 +58,19 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
             if (onVideoCreate) {
               onVideoCreate(videoElement);
             }
+            // CRITICAL: Pannellum expects image.width and image.height properties.
+            // HTMLVideoElement only has videoWidth and videoHeight by default.
+            // If we don't set these, Pannellum thinks the video is too big, tries to crop it 
+            // on a 0x0 canvas, and renders a completely white screen!
+            videoElement.width = videoElement.videoWidth;
+            videoElement.height = videoElement.videoHeight;
+            
             config.dynamic = true;
+            config.dynamicUpdate = true;
             config.panorama = videoElement;
+            
             if (viewerRef.current) {
               pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
-              // Pannellum listens for 'load' on the passed element. 
-              // Since <video> elements do not fire 'load', we dispatch it manually.
               setTimeout(() => {
                 videoElement.dispatchEvent(new Event('load'));
               }, 50);
