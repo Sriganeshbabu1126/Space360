@@ -66,13 +66,12 @@ async def get_all_sessions(
                         if uri.startswith("gs://"):
                             import urllib.parse
                             parsed = urllib.parse.urlparse(uri)
-                            path_parts = parsed.path.lstrip('/').split('/')
-                            blob_path = '/'.join(path_parts[1:])
+                            blob_path = parsed.path.lstrip('/')
                             try:
                                 http_url = get_signed_url(blob_path)
                             except Exception as ex:
                                 print(f"Error signing url for {blob_path}: {ex}")
-                                http_url = uri.replace("gs://", "https://storage.googleapis.com/")
+                                http_url = uri.replace(f"gs://{parsed.netloc}/", "https://storage.googleapis.com/")
                             
                         frames.append({
                             "id": f"frame_{i}",

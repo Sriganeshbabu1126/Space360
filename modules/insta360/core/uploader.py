@@ -22,7 +22,7 @@ except ImportError:
 class GCSUploader:
     def __init__(self):
         self.key_path = os.getenv("GCS_KEY_PATH")
-        self.bucket_name = os.getenv("GCS_BUCKET_NAME")
+        self.bucket_name = os.getenv("GCS_BUCKET_NAME") or os.getenv("GCS_BUCKET")
         self.project_id = os.getenv("GCS_PROJECT_ID")
         self.client = None
         self.bucket = None
