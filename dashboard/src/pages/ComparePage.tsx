@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAllSessions, getSites } from '../services/api';
-import { Link2, Link2Off, Download, Play, Pause, Zap } from 'lucide-react';
+import { Link2, Link2Off, Download, Play, Pause, Zap, Maximize, Minimize } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import { analyzeVisualChanges } from '../services/aiAnalysis';
@@ -30,6 +30,8 @@ const ComparePage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const compareContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<string>('');
@@ -273,6 +275,23 @@ const ComparePage: React.FC = () => {
       if (animFrame) cancelAnimationFrame(animFrame);
     };
   }, [isVideoA, isVideoB, isMixedType, isSynced]);
+
+  // Fullscreen listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      compareContainerRef.current?.requestFullscreen().catch(console.error);
+    } else {
+      document.exitFullscreen().catch(console.error);
+    }
+  };
 
   const togglePlay = () => {
     if (videoAElement.current && videoBElement.current) {
@@ -548,10 +567,16 @@ const ComparePage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-black relative">
+      <div ref={compareContainerRef} className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-black relative">
         {!sessionA && !sessionB && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400 z-10 bg-gray-50">
             Please select captures to compare.
+          </div>
+        )}
+        
+        {isFullScreen && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full pointer-events-none z-30 font-medium text-sm transition-opacity">
+            Press ESC to return
           </div>
         )}
         
@@ -609,7 +634,7 @@ const ComparePage: React.FC = () => {
         {/* Video Controls */}
         {isVideoA && isVideoB && !isMixedType && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-black/80 rounded-full px-6 py-3 flex items-center space-x-4 shadow-xl">
-            <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none">
+            <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none transition-colors">
               {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
             </button>
             <input 
@@ -621,6 +646,9 @@ const ComparePage: React.FC = () => {
               onChange={handleSeek} 
               className="w-64 accent-brand-500" 
             />
+            <button onClick={toggleFullScreen} className="text-white hover:text-brand-400 focus:outline-none transition-colors">
+              {isFullScreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+            </button>
           </div>
         )}
       </div>

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSiteContext } from '../context/SiteContext';
 import { getAllSessions } from '../services/api';
 import ComparePathOverlay from '../components/ComparePathOverlay';
 import PannellumViewer from '../components/PannellumViewer';
 import Viewer360 from '../components/Viewer360';
+import { Play, Pause, Maximize, Minimize } from 'lucide-react';
 
 const NavigatePage: React.FC = () => {
   const { selectedSiteId, selectedFloorPlanId, sites } = useSiteContext();
@@ -16,6 +17,57 @@ const NavigatePage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'video' | 'image'>('video');
 
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const viewerContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+
+  // Sync video time
+  useEffect(() => {
+    let animFrame: number;
+    const syncTime = () => {
+      if (videoRef.current) {
+        setCurrentVideoTime(videoRef.current.currentTime);
+      }
+      animFrame = requestAnimationFrame(syncTime);
+    };
+    if (viewMode === 'video') {
+      animFrame = requestAnimationFrame(syncTime);
+    }
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [viewMode]);
+
+  // Fullscreen listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      viewerContainerRef.current?.requestFullscreen().catch(console.error);
+    } else {
+      document.exitFullscreen().catch(console.error);
+    }
+  };
 
   useEffect(() => {
     document.title = "Navigate | Space360";
@@ -125,10 +177,31 @@ const NavigatePage: React.FC = () => {
         ) : (
           <>
             {/* Viewer Panel */}
-            <div className="flex-1 bg-black rounded-lg overflow-hidden shadow-inner relative flex flex-col">
+            <div ref={viewerContainerRef} className="flex-1 bg-black rounded-lg overflow-hidden shadow-inner relative flex flex-col group">
               {viewMode === 'video' && selectedSession.video_url ? (
                  <div className="flex-1 relative">
-                    <PannellumViewer url={selectedSession.video_url} isVideo={true} />
+                    <PannellumViewer 
+                      url={selectedSession.video_url} 
+                      isVideo={true} 
+                      onVideoCreate={(vid) => videoRef.current = vid}
+                    />
+                    
+                    {/* Fullscreen HUD */}
+                    {isFullScreen && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full pointer-events-none z-10 font-medium text-sm transition-opacity">
+                        Press ESC to return
+                      </div>
+                    )}
+                    
+                    {/* Controls Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity z-10">
+                      <button onClick={togglePlay} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all">
+                        {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+                      </button>
+                      <button onClick={toggleFullScreen} className="text-white hover:text-brand-400 focus:outline-none p-2 bg-black/30 rounded-full hover:bg-black/50 backdrop-blur-sm transition-all">
+                        {isFullScreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+                      </button>
+                    </div>
                  </div>
               ) : viewMode === 'image' && currentFrame ? (
                  <div className="flex-1 relative">
