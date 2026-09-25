@@ -31,8 +31,11 @@ const NavigatePage: React.FC = () => {
       });
 
       getAllSessions(selectedSiteId).then(res => {
-        // Filter to only video captures (ignore static 360 photos)
-        const videoCaptures = res.data.filter((c: any) => c.video_url != null || c.location_label === '360° Video Sequence' || c.processing_status === 'pending' || (c.frames && c.frames.length > 0));
+        // Filter to only video captures that actually have a URL or are still processing
+        const videoCaptures = res.data.filter((c: any) => 
+          (c.location_label === '360° Video Sequence' || c.video_url != null || (c.frames && c.frames.length > 0)) &&
+          (c.video_url != null || c.processing_status === 'pending')
+        );
         let sorted = videoCaptures.sort((a: any, b: any) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
         
         setSessions(sorted);

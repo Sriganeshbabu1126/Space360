@@ -114,7 +114,9 @@ const ComparePage: React.FC = () => {
   const sessionA = sessions.find(s => s.id === sessionAId);
   const sessionB = sessions.find(s => s.id === sessionBId);
 
-  const isVideoCapture = (capture: any) => capture?.video_url != null || capture?.location_label === '360° Video Sequence' || capture?.processing_status === 'pending' || (capture?.frames && capture?.frames.length > 0);
+  const isVideoCapture = (capture: any) => 
+    (capture?.location_label === '360° Video Sequence' || capture?.video_url != null || (capture?.frames && capture?.frames.length > 0)) &&
+    (capture?.video_url != null || capture?.processing_status === 'pending');
   const filteredSessions = sessions.filter(s => viewMode === 'video' ? isVideoCapture(s) : !isVideoCapture(s));
   const isVideoA = isVideoCapture(sessionA);
   const isVideoB = isVideoCapture(sessionB);

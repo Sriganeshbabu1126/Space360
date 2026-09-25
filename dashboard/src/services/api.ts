@@ -66,8 +66,8 @@ export const createLocation = (
   api.post(`/locations/floor-plan/${floorPlanId}`, data);
 
 // --- Paths ---
-export const getPaths = (siteId: string) => api.get(`/paths/?site_id=${siteId}`);
-export const getPath = (pathId: string) => api.get(`/paths/${pathId}`);
+export const getPaths = (siteId: string) => api.get(`/api/paths/?site_id=${siteId}`);
+export const getPath = (pathId: string) => api.get(`/api/paths/${pathId}`);
 
 // --- Sessions ---
 export const getAllSessions = (siteId?: string) => 
