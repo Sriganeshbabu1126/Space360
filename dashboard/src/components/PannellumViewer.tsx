@@ -42,7 +42,10 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
           videoElement.loop = true;
           videoElement.playsInline = true;
           videoElement.preload = 'auto';
-          videoElement.style.display = 'none';
+          videoElement.style.position = 'absolute';
+          videoElement.style.left = '-9999px';
+          videoElement.style.width = '1px';
+          videoElement.style.height = '1px';
           document.body.appendChild(videoElement);
 
           videoElement.onerror = (e) => {
@@ -57,6 +60,11 @@ const PannellumViewer: React.FC<PannellumViewerProps> = ({ url, isVideo = true, 
             config.panorama = videoElement;
             if (viewerRef.current) {
               pannellumInstance.current = window.pannellum.viewer(viewerRef.current, config);
+              // Pannellum listens for 'load' on the passed element. 
+              // Since <video> elements do not fire 'load', we dispatch it manually.
+              setTimeout(() => {
+                videoElement.dispatchEvent(new Event('load'));
+              }, 50);
             }
           };
 
