@@ -15,6 +15,7 @@ import ComparePage from './pages/ComparePage';
 import AIDetectPage from './pages/AIDetectPage';
 import ReportGenerationPage from './pages/ReportGenerationPage';
 import NavigatePage from './pages/NavigatePage';
+import AuditLogsPage from './pages/AuditLogsPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ const AppRoutes = () => (
     <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
       {/* Global Pages */}
       <Route index element={<HomePage />} />
+      <Route path="audit-logs" element={<AuditLogsPage />} />
       
       {/* Project Context Pages */}
       <Route path="projects/:projectId" element={<ProjectDashboard />}>

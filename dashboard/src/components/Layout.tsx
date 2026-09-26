@@ -21,8 +21,10 @@ const Layout: React.FC = () => {
 
   const globalNavItems = [
     { name: 'Projects Hub', path: '/', icon: LayoutDashboard },
-    // { name: 'Settings', path: '/settings', icon: Settings },
   ];
+  if (isAdmin) {
+    globalNavItems.push({ name: 'Audit Logs', path: '/audit-logs', icon: Settings });
+  }
 
   const projectNavItems = [
     { name: 'Navigate', path: `/projects/${selectedSiteId}/navigate`, icon: Map },

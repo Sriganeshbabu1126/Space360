@@ -1,0 +1,25 @@
+{
+  "displayName": "Cloud Run High CPU Utilization",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "CPU utilization > 80%",
+      "conditionThreshold": {
+        "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"space360-backend\" AND metric.type = \"run.googleapis.com/container/cpu/utilizations\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "crossSeriesReducer": "REDUCE_NONE",
+            "perSeriesAligner": "ALIGN_MEAN"
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "duration": "0s",
+        "trigger": {
+          "count": 1
+        },
+        "thresholdValue": 0.8
+      }
+    }
+  ]
+}
